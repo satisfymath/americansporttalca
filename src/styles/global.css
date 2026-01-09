@@ -1,0 +1,152 @@
+/* Global styles - Brutalista minimalista */
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+a {
+  color: var(--fg);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 1.75rem;
+}
+h2 {
+  font-size: 1.5rem;
+}
+h3 {
+  font-size: 1.25rem;
+}
+
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Utility classes */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 var(--space);
+}
+
+.flex {
+  display: flex;
+}
+.flex-col {
+  flex-direction: column;
+}
+.items-center {
+  align-items: center;
+}
+.justify-between {
+  justify-content: space-between;
+}
+.gap-sm {
+  gap: var(--space-sm);
+}
+.gap {
+  gap: var(--space);
+}
+.gap-lg {
+  gap: var(--space-lg);
+}
+
+.text-muted {
+  color: var(--muted);
+}
+.text-red {
+  color: var(--red);
+}
+.text-center {
+  text-align: center;
+}
+.text-right {
+  text-align: right;
+}
+.text-sm {
+  font-size: 0.875rem;
+}
+.text-mono {
+  font-family: var(--font-mono);
+}
+
+.mt-sm {
+  margin-top: var(--space-sm);
+}
+.mt {
+  margin-top: var(--space);
+}
+.mt-lg {
+  margin-top: var(--space-lg);
+}
+.mb-sm {
+  margin-bottom: var(--space-sm);
+}
+.mb {
+  margin-bottom: var(--space);
+}
+.mb-lg {
+  margin-bottom: var(--space-lg);
+}
+
+.w-full {
+  width: 100%;
+}
+
+.hidden {
+  display: none;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}

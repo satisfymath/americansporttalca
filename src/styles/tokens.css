@@ -1,0 +1,18 @@
+/* Design tokens - American Sport Talca */
+:root {
+  --bg: #0b0b0b;
+  --fg: #ffffff;
+  --muted: #bdbdbe;
+  --navy: #000464;
+  --red: #ff0000;
+  --border: rgba(255, 255, 255, 0.14);
+  --border-focus: rgba(255, 255, 255, 0.4);
+  --radius: 0px;
+  --space: 14px;
+  --space-sm: 8px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial,
+    sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
