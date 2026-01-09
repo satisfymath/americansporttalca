@@ -62,25 +62,25 @@ export default function AdminDashboard() {
   const stats = useMemo(() => {
     const currentPeriod = getCurrentPeriod()
 
-    // Income this month (from cashSheet)
-    const monthIncome = db.cashSheet
+    // Income this month (from cashSheet) - with fallback
+    const monthIncome = (db.cashSheet || [])
       .filter((row) => row.date.startsWith(currentPeriod))
       .reduce((sum, row) => sum + row.total, 0)
 
-    // Payments received this month
-    const paymentsThisMonth = db.payments.filter((p) =>
+    // Payments received this month - with fallback
+    const paymentsThisMonth = (db.payments || []).filter((p) =>
       p.paidAt.startsWith(currentPeriod)
     ).length
 
-    // Attendances this month (IN only)
-    const attendanceThisMonth = db.attendance.filter(
+    // Attendances this month (IN only) - with fallback
+    const attendanceThisMonth = (db.attendance || []).filter(
       (a) => a.type === 'IN' && isCurrentMonth(a.ts)
     ).length
 
-    // Overdue members
-    const overdueMembers = db.members.filter((member) => {
+    // Overdue members - with fallback
+    const overdueMembers = (db.members || []).filter((member) => {
       if (member.status !== 'active') return false
-      const memberPayments = db.payments.filter((p) => p.memberId === member.id)
+      const memberPayments = (db.payments || []).filter((p) => p.memberId === member.id)
       const lastPaidPeriod = memberPayments.length > 0
         ? memberPayments.sort((a, b) => b.period.localeCompare(a.period))[0].period
         : null
@@ -93,7 +93,7 @@ export default function AdminDashboard() {
 
   // Member status calculation
   const getMemberStatus = (member: Member) => {
-    const memberPayments = db.payments.filter((p) => p.memberId === member.id)
+    const memberPayments = (db.payments || []).filter((p) => p.memberId === member.id)
     const lastPaidPeriod = memberPayments.length > 0
       ? memberPayments.sort((a, b) => b.period.localeCompare(a.period))[0].period
       : null
@@ -185,11 +185,12 @@ export default function AdminDashboard() {
     }
   }
 
-  // Filter members by search
+  // Filter members by search - with fallback
   const filteredMembers = useMemo(() => {
-    if (!searchQuery.trim()) return db.members
+    const members = db.members || []
+    if (!searchQuery.trim()) return members
     const q = searchQuery.toLowerCase()
-    return db.members.filter(
+    return members.filter(
       m => m.name.toLowerCase().includes(q) ||
            m.memberNo.toLowerCase().includes(q) ||
            m.profile?.rut?.toLowerCase().includes(q) ||
@@ -203,7 +204,7 @@ export default function AdminDashboard() {
 
     const newMember: Member = {
       id: nanoid(),
-      memberNo: `S${String(db.members.length + 1).padStart(3, '0')}`,
+      memberNo: `S${String((db.members || []).length + 1).padStart(3, '0')}`,
       name: newMemberForm.name.trim(),
       status: 'active',
       plan: {
@@ -509,8 +510,8 @@ export default function AdminDashboard() {
 
           {/* Members table */}
           <Card>
-            <h3 style={{ marginBottom: 'var(--space)' }}>Socios ({db.members.length})</h3>
-            <Table columns={memberColumns} data={db.members} keyField="id" />
+            <h3 style={{ marginBottom: 'var(--space)' }}>Socios ({(db.members || []).length})</h3>
+            <Table columns={memberColumns} data={db.members || []} keyField="id" />
           </Card>
         </>
       )}

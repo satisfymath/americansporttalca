@@ -35,8 +35,8 @@ export default function TopBar() {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 'var(--space)',
-          padding: '0 var(--space-lg)',
-          paddingLeft: 'calc(clamp(40px, 4vw, 64px) + var(--space-lg))', // Account for cinta
+          padding: '0 var(--space)',
+          paddingLeft: 'calc(clamp(48px, 5vw, 72px) + var(--space))',
         }}
       >
         {/* Logo */}

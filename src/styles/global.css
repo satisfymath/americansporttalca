@@ -184,18 +184,30 @@ button {
     display: none !important;
   }
   
-  .rail-left,
   .rail-right {
-    opacity: 0.15 !important;
+    opacity: 0.12 !important;
   }
   
   .cinta-vertical {
-    width: 28px !important;
+    width: 36px !important;
+  }
+  
+  .main-content {
+    padding-left: calc(36px + var(--space-sm)) !important;
   }
 }
 
 @media (max-width: 480px) {
   .cinta-vertical {
+    width: 28px !important;
+  }
+  
+  .main-content {
+    padding-left: calc(28px + var(--space-sm)) !important;
+    padding-right: var(--space-sm) !important;
+  }
+  
+  .rail-right {
     display: none !important;
   }
 }

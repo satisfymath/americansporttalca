@@ -19,6 +19,7 @@ export default function Shell({ children }: ShellProps) {
 
       {/* Main content - centered with padding */}
       <main
+        className="main-content"
         style={{
           flex: 1,
           position: 'relative',
@@ -26,8 +27,8 @@ export default function Shell({ children }: ShellProps) {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: 'var(--space-lg) clamp(16px, 5vw, 40px)',
-          paddingLeft: 'calc(clamp(40px, 4vw, 64px) + clamp(16px, 3vw, 40px))', // Account for cinta
+          padding: 'var(--space-lg) var(--space)',
+          paddingLeft: 'calc(clamp(48px, 5vw, 72px) + var(--space))',
         }}
       >
         <div
@@ -47,6 +48,7 @@ export default function Shell({ children }: ShellProps) {
           zIndex: 'var(--z-content)',
           borderTop: '1px solid var(--border)',
           padding: 'var(--space)',
+          paddingLeft: 'calc(clamp(48px, 5vw, 72px) + var(--space))',
           textAlign: 'center',
           fontSize: 'var(--text-xs)',
           color: 'var(--muted)',
