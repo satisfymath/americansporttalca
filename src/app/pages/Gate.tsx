@@ -1,4 +1,5 @@
 // Gate page - flujo QR para marcar entrada/salida con validaciones
+// ENTRADA requiere escanear QR válido, SALIDA no requiere QR
 import { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { nanoid } from 'nanoid'
@@ -13,11 +14,12 @@ import {
   isWithinOperatingHours, 
   canMemberCheckIn, 
   canMemberCheckOut,
-  getSessionInfo 
+  getSessionInfo,
+  validateQRToken 
 } from '../utils/qr'
 import type { AttendanceType, AttendanceEvent } from '../data/schema'
 
-type Step = 'login' | 'confirm' | 'done' | 'error'
+type Step = 'login' | 'scan-required' | 'confirm' | 'done' | 'error'
 
 export default function Gate() {
   const [searchParams] = useSearchParams()
@@ -27,10 +29,11 @@ export default function Gate() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [suggestion, setSuggestion] = useState<AttendanceType>('IN')
   const [selected, setSelected] = useState<AttendanceType>('IN')
   const [registeredEvent, setRegisteredEvent] = useState<AttendanceEvent | null>(null)
   const [operatingStatus, setOperatingStatus] = useState(isWithinOperatingHours())
+  const [manualCode, setManualCode] = useState('')
+  const [codeError, setCodeError] = useState('')
 
   // Verificar horario de operacion al cargar
   useEffect(() => {
@@ -43,26 +46,36 @@ export default function Gate() {
       return
     }
     
-    // Check if already logged in
+    // Check if already logged in - usar lógica de QR
     if (isAuthenticated() && getLoggedMemberId()) {
-      determineSuggestion()
-      setStep('confirm')
+      determineNextStep()
     }
-  }, [])
+  }, [qrToken]) // Re-evaluar cuando cambie el token
 
-  const determineSuggestion = () => {
+  // Determinar siguiente paso basado en si tiene QR válido y su estado de sesión
+  const determineNextStep = () => {
     const memberId = getLoggedMemberId()
     if (!memberId) return
-
+    
     const db = loadDb()
     const sessionInfo = getSessionInfo(memberId, db.attendance)
-
+    
+    // Si tiene sesión abierta, puede marcar SALIDA sin QR
     if (sessionInfo.hasOpenSession) {
-      setSuggestion('OUT')
       setSelected('OUT')
+      setStep('confirm')
+      return
+    }
+    
+    // Para ENTRADA, necesita QR válido
+    setSelected('IN')
+    
+    // Verificar si tiene token QR válido
+    if (qrToken && validateQRToken(qrToken)) {
+      setStep('confirm')
     } else {
-      setSuggestion('IN')
-      setSelected('IN')
+      // No tiene QR válido - mostrar pantalla de escanear
+      setStep('scan-required')
     }
   }
 
@@ -91,8 +104,26 @@ export default function Gate() {
       return
     }
 
-    determineSuggestion()
-    setStep('confirm')
+    determineNextStep()
+  }
+
+  // Validar código de acceso manual
+  const handleManualCode = (e: React.FormEvent) => {
+    e.preventDefault()
+    setCodeError('')
+    
+    const code = manualCode.trim().toUpperCase()
+    if (!code) {
+      setCodeError('Ingresa el código de acceso')
+      return
+    }
+    
+    if (validateQRToken(code)) {
+      // Código válido - proceder a confirmar
+      setStep('confirm')
+    } else {
+      setCodeError('Código inválido o expirado. Pide el código actual en recepción.')
+    }
   }
 
   const handleConfirm = () => {
@@ -102,9 +133,11 @@ export default function Gate() {
     setError('')
     const db = loadDb()
 
-    // Validaciones segun tipo de operacion
+    // Validaciones segun tipo de operacion - usar código manual si no hay QR
+    const tokenToUse = qrToken || manualCode.trim().toUpperCase() || undefined
+    
     if (selected === 'IN') {
-      const checkResult = canMemberCheckIn(memberId, db.attendance, qrToken || undefined)
+      const checkResult = canMemberCheckIn(memberId, db.attendance, tokenToUse)
       if (!checkResult.allowed) {
         setError(checkResult.error || 'No se puede registrar entrada')
         return
@@ -181,8 +214,8 @@ export default function Gate() {
     )
   }
 
-  // Step: Confirm
-  if (step === 'confirm') {
+  // Step: Scan Required - El cliente debe escanear el QR O ingresar código manual
+  if (step === 'scan-required') {
     const session = getSession()
     return (
       <div style={{ maxWidth: 500, margin: '0 auto', textAlign: 'center' }}>
@@ -194,46 +227,167 @@ export default function Gate() {
 
         <Card>
           <p style={{ color: 'var(--muted)', marginBottom: 'var(--space-sm)' }}>
-            Bienvenido/a
+            Hola, {session.username}
+          </p>
+          
+          <h2 style={{ 
+            marginBottom: 'var(--space)', 
+            color: 'var(--magenta-600)' 
+          }}>
+            Registrar Entrada
+          </h2>
+          
+          {/* Opción 1: Escanear QR */}
+          <div style={{
+            padding: 'var(--space)',
+            background: 'rgba(0, 200, 83, 0.1)',
+            borderRadius: '8px',
+            marginBottom: 'var(--space)',
+            border: '1px solid rgba(0, 200, 83, 0.3)'
+          }}>
+            <div style={{ fontSize: '2rem', marginBottom: 'var(--space-sm)' }}>📱</div>
+            <p style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 'var(--space-xs)' }}>
+              Opción 1: Escanear QR
+            </p>
+            <p style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+              Escanea el código QR en recepción con la cámara de tu celular
+            </p>
+          </div>
+
+          {/* Separador */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space)',
+            margin: 'var(--space) 0',
+            color: 'var(--muted)'
+          }}>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+            <span style={{ fontSize: '0.8rem' }}>o</span>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+          </div>
+
+          {/* Opción 2: Código manual */}
+          <div style={{
+            padding: 'var(--space)',
+            background: 'var(--bg-alt)',
+            borderRadius: '8px',
+            marginBottom: 'var(--space-lg)'
+          }}>
+            <div style={{ fontSize: '2rem', marginBottom: 'var(--space-sm)' }}>🔑</div>
+            <p style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 'var(--space)' }}>
+              Opción 2: Código de Acceso
+            </p>
+            
+            <form onSubmit={handleManualCode}>
+              <Input
+                label="Código de acceso"
+                type="text"
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value.toUpperCase())}
+                placeholder="Ej: ASG1015XXXXXXXX"
+                error={codeError}
+                style={{ 
+                  textAlign: 'center', 
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '2px',
+                  textTransform: 'uppercase'
+                }}
+              />
+              <Button type="submit" variant="primary" fullWidth>
+                Validar Código
+              </Button>
+            </form>
+            
+            <p style={{ 
+              fontSize: '0.75rem', 
+              color: 'var(--muted)',
+              marginTop: 'var(--space-sm)'
+            }}>
+              Pide el código al personal de recepción
+            </p>
+          </div>
+
+          <div style={{
+            padding: 'var(--space-sm)',
+            background: 'rgba(var(--magenta-600-rgb), 0.05)',
+            borderRadius: '6px',
+            marginBottom: 'var(--space)'
+          }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+              ⏱️ El código cambia cada 2 minutos por seguridad
+            </p>
+          </div>
+
+          <div style={{ marginTop: 'var(--space)' }}>
+            <button
+              onClick={handleNewSession}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--muted)',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+              }}
+            >
+              Cambiar usuario
+            </button>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  // Step: Confirm - Solo se llega aquí si:
+  // - ENTRADA: tiene QR válido escaneado
+  // - SALIDA: tiene sesión abierta (no necesita QR)
+  if (step === 'confirm') {
+    const session = getSession()
+    const isEntry = selected === 'IN'
+    
+    return (
+      <div style={{ maxWidth: 500, margin: '0 auto', textAlign: 'center' }}>
+        <img
+          src="./brand/americansporttalca_logo.png"
+          alt="American Sport"
+          style={{ height: 60, marginBottom: 'var(--space-lg)' }}
+        />
+
+        <Card>
+          <p style={{ color: 'var(--muted)', marginBottom: 'var(--space-sm)' }}>
+            {isEntry ? '¡Bienvenido/a!' : 'Hasta pronto'}
           </p>
           <h2 style={{ marginBottom: 'var(--space-lg)' }}>{session.username}</h2>
 
-          <p style={{ marginBottom: 'var(--space)', color: 'var(--muted)' }}>
-            {suggestion === 'IN'
-              ? 'Sugerencia: Marcar ENTRADA'
-              : 'Sugerencia: Marcar SALIDA'}
-          </p>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 'var(--space)',
-              marginBottom: 'var(--space-lg)',
-            }}
-          >
-            <Button
-              variant={selected === 'IN' ? 'primary' : 'default'}
-              onClick={() => setSelected('IN')}
-              style={{
-                padding: 'var(--space-lg)',
-                fontSize: '1.25rem',
-                fontWeight: 700,
-              }}
-            >
-              ENTRADA
-            </Button>
-            <Button
-              variant={selected === 'OUT' ? 'primary' : 'default'}
-              onClick={() => setSelected('OUT')}
-              style={{
-                padding: 'var(--space-lg)',
-                fontSize: '1.25rem',
-                fontWeight: 700,
-              }}
-            >
-              SALIDA
-            </Button>
+          {/* Indicador visual del tipo de registro */}
+          <div style={{
+            padding: 'var(--space-lg)',
+            marginBottom: 'var(--space-lg)',
+            background: isEntry 
+              ? 'linear-gradient(135deg, rgba(0, 200, 83, 0.15), rgba(0, 200, 83, 0.05))'
+              : 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05))',
+            borderRadius: '12px',
+            border: isEntry ? '2px solid rgba(0, 200, 83, 0.3)' : '2px solid rgba(239, 68, 68, 0.3)'
+          }}>
+            <div style={{ fontSize: '3rem', marginBottom: 'var(--space-sm)' }}>
+              {isEntry ? '🏋️' : '👋'}
+            </div>
+            <h3 style={{ 
+              color: isEntry ? '#00c853' : 'var(--red)',
+              fontSize: '1.5rem',
+              fontWeight: 700
+            }}>
+              {isEntry ? 'ENTRADA' : 'SALIDA'}
+            </h3>
+            {isEntry && qrToken && (
+              <p style={{ 
+                fontSize: '0.75rem', 
+                color: 'var(--muted)',
+                marginTop: 'var(--space-sm)'
+              }}>
+                ✓ QR verificado
+              </p>
+            )}
           </div>
 
           {/* Mensaje de error si hay */}
@@ -251,8 +405,17 @@ export default function Gate() {
             </div>
           )}
 
-          <Button variant="primary" fullWidth onClick={handleConfirm}>
-            Confirmar {selected === 'IN' ? 'Entrada' : 'Salida'}
+          <Button 
+            variant="primary" 
+            fullWidth 
+            onClick={handleConfirm}
+            style={{
+              padding: 'var(--space-lg)',
+              fontSize: '1.25rem',
+              fontWeight: 700
+            }}
+          >
+            ✓ Confirmar {isEntry ? 'Entrada' : 'Salida'}
           </Button>
 
           <div style={{ marginTop: 'var(--space)' }}>

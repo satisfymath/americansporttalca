@@ -99,7 +99,7 @@ export default function CashSheet() {
   const handleAddRow = () => {
     if (!form.memberId) return
 
-    const member = db.members.find((m) => m.id === form.memberId)
+    const member = (db.members || []).find((m) => m.id === form.memberId)
     if (!member) return
 
     const efectivo = parseInt(form.efectivo) || 0
@@ -203,16 +203,16 @@ export default function CashSheet() {
 
   // Calcular efectivo pendiente de depositar
   const pendingCashToDeposit = useMemo(() => {
-    // Total efectivo recibido
-    const totalCash = db.cashSheet.reduce((sum, row) => sum + row.efectivo, 0)
-    // Total ya depositado
-    const totalDeposited = db.bankDeposits.reduce((sum, d) => sum + d.amount, 0)
+    // Total efectivo recibido - with fallback
+    const totalCash = (db.cashSheet || []).reduce((sum, row) => sum + row.efectivo, 0)
+    // Total ya depositado - with fallback
+    const totalDeposited = (db.bankDeposits || []).reduce((sum, d) => sum + d.amount, 0)
     return totalCash - totalDeposited
   }, [db.cashSheet, db.bankDeposits])
 
   // Filtrar depósitos por mes
   const filteredDeposits = useMemo(() => {
-    return db.bankDeposits
+    return (db.bankDeposits || [])
       .filter((d) => d.date.startsWith(filterMonth))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   }, [db.bankDeposits, filterMonth])
@@ -634,7 +634,7 @@ export default function CashSheet() {
               }}
             >
               <option value="">Seleccionar...</option>
-              {db.members.map((m) => (
+              {(db.members || []).map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.memberNo} - {m.name}
                 </option>

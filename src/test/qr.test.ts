@@ -7,7 +7,8 @@ import {
   hasOpenSession,
   canMemberCheckIn,
   canMemberCheckOut,
-  HOURLY_QR_TOKENS,
+  generateQRToken,
+  QR_INTERVAL_MINUTES,
 } from '../app/utils/qr'
 import { resetDb } from '../app/state/storage'
 import { nanoid } from 'nanoid'
@@ -18,16 +19,23 @@ describe('QR Utils', () => {
     resetDb()
   })
 
-  describe('HOURLY_QR_TOKENS', () => {
-    it('should have tokens for hours 8-22', () => {
-      expect(HOURLY_QR_TOKENS[8]).toBe('ASG08DEMO26')
-      expect(HOURLY_QR_TOKENS[12]).toBe('ASG12DEMO26')
-      expect(HOURLY_QR_TOKENS[22]).toBe('ASG22DEMO26')
+  describe('QR Token Generation (2-minute intervals)', () => {
+    it('should generate different tokens for different slots', () => {
+      // Probar directamente con diferentes slots
+      const slot1 = { date: '2025-01-15', hour: 10, slot: 0 }
+      const slot2 = { date: '2025-01-15', hour: 10, slot: 0 }
+      const slot3 = { date: '2025-01-15', hour: 10, slot: 1 }
+      
+      const token1 = generateQRToken(slot1)
+      const token2 = generateQRToken(slot2)
+      const token3 = generateQRToken(slot3)
+      
+      expect(token1).toBe(token2) // Mismo slot
+      expect(token1).not.toBe(token3) // Diferente slot
     })
 
-    it('should not have tokens before 8 or after 22', () => {
-      expect(HOURLY_QR_TOKENS[7]).toBeUndefined()
-      expect(HOURLY_QR_TOKENS[23]).toBeUndefined()
+    it('should have 2-minute interval constant', () => {
+      expect(QR_INTERVAL_MINUTES).toBe(2)
     })
   })
 
@@ -39,10 +47,12 @@ describe('QR Utils', () => {
       vi.useRealTimers()
     })
 
-    it('should return correct token during operating hours', () => {
+    it('should return a token during operating hours', () => {
       vi.useFakeTimers()
       vi.setSystemTime(new Date('2025-01-15T10:30:00'))
-      expect(getCurrentQRToken()).toBe('ASG10DEMO26')
+      const token = getCurrentQRToken()
+      expect(token).not.toBeNull()
+      expect(token).toMatch(/^ASG[A-Z0-9]+$/)
       vi.useRealTimers()
     })
 
@@ -55,17 +65,30 @@ describe('QR Utils', () => {
   })
 
   describe('validateQRToken', () => {
-    it('should return true for current hour token', () => {
+    it('should return true for current token', () => {
       vi.useFakeTimers()
-      vi.setSystemTime(new Date('2025-01-15T14:45:00'))
-      expect(validateQRToken('ASG14DEMO26')).toBe(true)
+      vi.setSystemTime(new Date('2025-01-15T14:44:00'))
+      const currentToken = getCurrentQRToken()!
+      expect(validateQRToken(currentToken)).toBe(true)
+      vi.useRealTimers()
+    })
+
+    it('should return true for previous slot token (grace period)', () => {
+      vi.useFakeTimers()
+      // Generar token en minuto 2 (slot 1)
+      vi.setSystemTime(new Date('2025-01-15T14:02:00'))
+      const previousToken = getCurrentQRToken()!
+      
+      // Avanzar a minuto 4 (slot 2) - el token anterior debe seguir valido
+      vi.setSystemTime(new Date('2025-01-15T14:04:00'))
+      expect(validateQRToken(previousToken)).toBe(true)
       vi.useRealTimers()
     })
 
     it('should return false for wrong token', () => {
       vi.useFakeTimers()
       vi.setSystemTime(new Date('2025-01-15T14:45:00'))
-      expect(validateQRToken('ASG10DEMO26')).toBe(false)
+      expect(validateQRToken('WRONGTOKEN123')).toBe(false)
       vi.useRealTimers()
     })
 

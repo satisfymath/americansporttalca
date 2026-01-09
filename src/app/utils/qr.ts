@@ -33,13 +33,15 @@ export function generateQRToken(timeSlot?: { date: string; hour: number; slot: n
   const { date, hour, slot } = timeSlot || getCurrentTimeSlot()
   
   // Token: combinacion de fecha + hora + slot + secreto
-  const secret = 'ASG_2026'
-  const raw = `${date}-${hour}-${slot}-${secret}`
+  // Formato que garantiza unicidad: incluir slot de forma prominente
+  const secret = 'ASG'
+  const raw = `${secret}${date}${hour.toString().padStart(2, '0')}S${slot.toString().padStart(2, '0')}`
   
-  // Crear hash simple pero unico
-  const token = btoa(raw).replace(/[^a-zA-Z0-9]/g, '').slice(0, 10).toUpperCase()
+  // Crear hash simple pero unico - usar toda la info
+  const token = btoa(raw).replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase()
   
-  return `ASG${token}`
+  // Incluir slot visible en el token para debugging
+  return `ASG${hour.toString().padStart(2, '0')}${slot.toString().padStart(2, '0')}${token}`
 }
 
 /**

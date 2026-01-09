@@ -108,7 +108,35 @@ export default function QRBlock({ size = 200, showDebugInfo = false }: QRBlockPr
         <QRCodeSVG value={gateUrl} size={size} level="M" />
       </div>
       
-      {/* Token info */}
+      {/* Código de acceso manual */}
+      <div
+        style={{
+          padding: 'var(--space)',
+          background: 'var(--bg-alt)',
+          borderRadius: '8px',
+          textAlign: 'center',
+        }}
+      >
+        <p style={{ 
+          fontSize: '0.7rem', 
+          color: 'var(--muted)',
+          marginBottom: 'var(--space-xs)'
+        }}>
+          Código de acceso:
+        </p>
+        <p style={{
+          fontSize: '1.1rem',
+          fontWeight: 700,
+          fontFamily: 'var(--font-mono)',
+          letterSpacing: '2px',
+          color: 'var(--text)',
+          userSelect: 'all'
+        }}>
+          {currentToken}
+        </p>
+      </div>
+
+      {/* Countdown */}
       <div
         style={{
           fontSize: '0.875rem',
@@ -144,8 +172,7 @@ export default function QRBlock({ size = 200, showDebugInfo = false }: QRBlockPr
             borderRadius: '4px',
           }}
         >
-          <div>Token: {currentToken}</div>
-          <div style={{ marginTop: '4px' }}>{gateUrl}</div>
+          <div>URL: {gateUrl}</div>
         </div>
       )}
     </div>
