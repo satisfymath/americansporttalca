@@ -1,0 +1,195 @@
+================================================================================
+                  AMERICAN SPORT GYM - RONDA 2 DE MEJORAS
+                     Implementado por LLM Assistant
+                          Fecha: Enero 2026
+================================================================================
+
+RESUMEN DE CAMBIOS IMPLEMENTADOS
+--------------------------------
+
+Esta segunda ronda de mejoras se enfocó en:
+1. Registro de depósitos bancarios diarios con foto
+2. QR de asistencia exclusivo para vista admin (evitar escaneo desde casa)
+3. Reorganización del panel admin en secciones específicas
+
+================================================================================
+
+FEATURE 1: SUBIR FOTO DE DEPÓSITO BANCARIO DIARIO
+--------------------------------------------------------------------------------
+
+ARCHIVOS MODIFICADOS:
+- src/app/data/schema.ts
+- src/app/data/seed.ts  
+- src/app/pages/CashSheet.tsx
+
+CAMBIOS EN schema.ts:
+- Agregado tipo BankDeposit:
+  ```typescript
+  export type BankDeposit = {
+    id: string
+    date: string              // ISO date (YYYY-MM-DD)
+    amount: number            // Monto depositado
+    receiptPhoto: Attachment  // Foto del comprobante
+    depositedBy: string       // Nombre de quien depositó
+    notes?: string            // Notas opcionales
+    createdAt: string         // ISO timestamp
+  }
+  ```
+- Agregado bankDeposits: BankDeposit[] al tipo GymDB
+
+CAMBIOS EN seed.ts:
+- Inicializado bankDeposits: [] en el seed de datos
+
+CAMBIOS EN CashSheet.tsx:
+- Sistema de tabs: "Pagos del Día" | "Depósitos Bancarios"
+- Filtro por fecha para depósitos
+- Cálculo de efectivo pendiente de depositar
+- Modal de registro de depósito con:
+  - Fecha del depósito
+  - Monto
+  - Nombre de quien depositó
+  - Notas opcionales
+  - Upload de foto del comprobante (obligatorio)
+- Tabla de depósitos con vista previa de fotos
+- Formato de moneda CLP
+
+================================================================================
+
+FEATURE 2: QR SOLO VISIBLE PARA ADMIN
+--------------------------------------------------------------------------------
+
+ARCHIVOS MODIFICADOS:
+- src/app/pages/AdminDashboard.tsx
+
+LÓGICA DE SEGURIDAD:
+- El componente QRBlock ahora solo se renderiza en AdminDashboard
+- Los socios NO pueden ver el QR desde su dashboard de usuario
+- El socio debe estar presencialmente en el gimnasio para escanear
+- El QR cambia cada hora (token dinámico ASG{hora}DEMO26)
+- La validación del token se hace en Gate.tsx al marcar asistencia
+
+FLUJO CORRECTO:
+1. Admin muestra el QR en pantalla del gimnasio
+2. Socio escanea presencialmente con su celular
+3. Sistema valida token + estado de membresía
+4. Se registra entrada/salida
+
+PREVENCIÓN DE FRAUDE:
+- Sin QR en vista de usuario = no puede marcar desde casa
+- Token horario = capturas de pantalla caducan en 1 hora
+
+================================================================================
+
+FEATURE 3: PANEL ADMIN DIVIDIDO EN SECCIONES
+--------------------------------------------------------------------------------
+
+ARCHIVOS MODIFICADOS:
+- src/app/pages/AdminDashboard.tsx
+- src/app/components/Button.tsx (agregado variant 'secondary')
+
+SECCIONES IMPLEMENTADAS:
+
+1. 📊 RESUMEN (por defecto)
+   - Estadísticas del mes (ingresos, pagos, asistencias, vencidos)
+   - QR de entrada para mostrar a socios
+   - Tabla de todos los socios
+
+2. 🔍 BUSCAR CLIENTE
+   - Búsqueda por nombre, N° socio, RUT o email
+   - Resultados en tiempo real
+   - Acciones: Ver detalle, Vista 360, Modificar, Renovar
+
+3. ➕ INGRESAR CLIENTE
+   - Formulario completo para nuevo socio:
+     - Nombre completo (requerido)
+     - RUT
+     - Email
+     - Teléfono
+     - Cuota mensual
+     - Día de vencimiento
+   - Asignación automática de N° de socio
+
+4. ✏️ MODIFICAR DATOS
+   - Búsqueda de cliente
+   - Modal de edición con:
+     - Nombre
+     - Email
+     - Teléfono
+     - Cuota mensual
+     - Día de vencimiento
+
+5. 💳 RENOVAR PLAN
+   - Búsqueda de cliente
+   - Botón directo a formulario de pago
+   - Precarga monto de cuota del socio
+   - Tipo de operación: Renovación
+
+6. 🗑️ ELIMINAR CLIENTE
+   - Búsqueda de cliente
+   - Advertencia de eliminación permanente
+   - Confirmación requerida
+   - Elimina: datos del socio, pagos, asistencias
+
+NAVEGACIÓN:
+- Tabs de navegación en la parte superior
+- Tab activo resaltado con variant 'primary'
+- Estado de sección persiste durante la sesión
+
+================================================================================
+
+NOTAS TÉCNICAS
+--------------------------------------------------------------------------------
+
+TIPADO:
+- AdminSection = 'resumen' | 'buscar' | 'ingresar' | 'modificar' | 'renovar' | 'eliminar'
+- PlanType = 'estudiante' | 'antiguo' | 'full'
+- PaymentOperationType = 'inicio' | 'renovacion'
+
+ESTRUCTURA DE MEMBER:
+```typescript
+Member = {
+  id: string
+  memberNo: string
+  name: string
+  status: 'active' | 'paused'
+  plan: { monthlyFee, dueDay, type }
+  contact?: { phone?, email? }
+  profile?: { photo?, rut?, birthDate?, emergencyContact?, notes?, joinDate }
+}
+```
+
+PERSISTENCIA:
+- LocalStorage key: ASG_DEMO_DB_V1
+- Todos los cambios se guardan inmediatamente
+- Fotos se guardan como base64
+
+================================================================================
+
+TESTS
+--------------------------------------------------------------------------------
+
+57 tests pasando:
+- auth.test.ts: 9 tests
+- gate.test.ts: 4 tests  
+- payment.test.ts: 6 tests
+- qr.test.ts: 20 tests
+- stats.test.ts: 13 tests
+- storage.test.ts: 5 tests
+
+================================================================================
+
+PRÓXIMOS PASOS SUGERIDOS
+--------------------------------------------------------------------------------
+
+1. Agregar validación de RUT chileno
+2. Exportar planilla a Excel/PDF
+3. Notificaciones de vencimiento por email
+4. Dashboard de métricas avanzadas
+5. Backup automático de datos
+6. Modo oscuro/claro persistente
+7. PWA con funcionamiento offline
+8. Integración con cámara para foto de socio
+
+================================================================================
+                    FIN DEL DOCUMENTO DE MEJORAS RONDA 2
+================================================================================

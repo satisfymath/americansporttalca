@@ -396,5 +396,6 @@ export function createSeedDB(): GymDB {
     attendance,
     cashSheet,
     onlinePayments: [],
+    bankDeposits: [],
   }
 }

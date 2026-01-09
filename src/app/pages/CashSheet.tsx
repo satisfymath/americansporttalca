@@ -1,7 +1,8 @@
 // Cash Sheet - Planilla de caja
 import { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { nanoid } from 'nanoid'
-import { format } from 'date-fns'
+import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import Card from '../components/Card'
 import Button from '../components/Button'
@@ -12,11 +13,13 @@ import FilePreview from '../components/FilePreview'
 import { loadDb, updateDb } from '../state/storage'
 import { formatCLP } from '../utils/money'
 import { formatDate } from '../utils/dates'
-import type { CashRow, Attachment, PlanType, PaymentOperationType } from '../data/schema'
+import type { CashRow, Attachment, PlanType, PaymentOperationType, BankDeposit } from '../data/schema'
 
 export default function CashSheet() {
   const [db, setDb] = useState(loadDb)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showDepositModal, setShowDepositModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<'payments' | 'deposits'>('payments')
   const [filterMonth, setFilterMonth] = useState(format(new Date(), 'yyyy-MM'))
   const [filterText, setFilterText] = useState('')
   const [form, setForm] = useState({
@@ -30,6 +33,17 @@ export default function CashSheet() {
     operationType: 'renovacion' as PaymentOperationType,
   })
   const [attachment, setAttachment] = useState<Attachment | null>(null)
+  
+  // Estado para formulario de depósito bancario
+  const [depositForm, setDepositForm] = useState({
+    date: format(new Date(), 'yyyy-MM-dd'),
+    cashDate: format(subDays(new Date(), 1), 'yyyy-MM-dd'),
+    amount: '',
+    bankName: 'BancoEstado',
+    accountNumber: '',
+    notes: '',
+  })
+  const [depositVoucher, setDepositVoucher] = useState<Attachment | null>(null)
 
   // Filter cash rows
   const filteredRows = useMemo(() => {
@@ -128,6 +142,86 @@ export default function CashSheet() {
     setShowAddModal(false)
   }
 
+  // Handle deposit voucher file
+  const handleDepositVoucherChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      setDepositVoucher({
+        name: file.name,
+        mime: file.type,
+        base64: reader.result as string,
+      })
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Add bank deposit
+  const handleAddDeposit = () => {
+    if (!depositVoucher) {
+      alert('Debes adjuntar la foto del voucher de depósito')
+      return
+    }
+    if (!depositForm.amount || parseInt(depositForm.amount) <= 0) {
+      alert('El monto debe ser mayor a 0')
+      return
+    }
+
+    const newDeposit: BankDeposit = {
+      id: nanoid(),
+      date: depositForm.date,
+      cashDate: depositForm.cashDate,
+      amount: parseInt(depositForm.amount),
+      bankName: depositForm.bankName,
+      accountNumber: depositForm.accountNumber || undefined,
+      voucherPhoto: depositVoucher,
+      notes: depositForm.notes || undefined,
+      createdAt: new Date().toISOString(),
+      createdBy: 'admin',
+    }
+
+    const newDb = updateDb((d) => {
+      d.bankDeposits.push(newDeposit)
+      return d
+    })
+    setDb(newDb)
+
+    // Reset form
+    setDepositForm({
+      date: format(new Date(), 'yyyy-MM-dd'),
+      cashDate: format(subDays(new Date(), 1), 'yyyy-MM-dd'),
+      amount: '',
+      bankName: 'BancoEstado',
+      accountNumber: '',
+      notes: '',
+    })
+    setDepositVoucher(null)
+    setShowDepositModal(false)
+  }
+
+  // Calcular efectivo pendiente de depositar
+  const pendingCashToDeposit = useMemo(() => {
+    // Total efectivo recibido
+    const totalCash = db.cashSheet.reduce((sum, row) => sum + row.efectivo, 0)
+    // Total ya depositado
+    const totalDeposited = db.bankDeposits.reduce((sum, d) => sum + d.amount, 0)
+    return totalCash - totalDeposited
+  }, [db.cashSheet, db.bankDeposits])
+
+  // Filtrar depósitos por mes
+  const filteredDeposits = useMemo(() => {
+    return db.bankDeposits
+      .filter((d) => d.date.startsWith(filterMonth))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }, [db.bankDeposits, filterMonth])
+
+  // Total depositado del mes
+  const monthlyDepositTotal = useMemo(() => {
+    return filteredDeposits.reduce((sum, d) => sum + d.amount, 0)
+  }, [filteredDeposits])
+
   // Table columns
   const columns = [
     {
@@ -220,20 +314,88 @@ export default function CashSheet() {
           gap: 'var(--space)',
         }}
       >
-        <h1>Planilla de Caja</h1>
-        <Button variant="primary" onClick={() => setShowAddModal(true)}>
-          Agregar Registro
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space)' }}>
+          <Link to="/admin">
+            <Button>← Volver</Button>
+          </Link>
+          <h1>Planilla de Caja</h1>
+        </div>
+        <div style={{ display: 'flex', gap: 'var(--space)' }}>
+          {activeTab === 'payments' && (
+            <Button variant="primary" onClick={() => setShowAddModal(true)}>
+              + Agregar Pago
+            </Button>
+          )}
+          {activeTab === 'deposits' && (
+            <Button variant="primary" onClick={() => setShowDepositModal(true)}>
+              + Registrar Depósito
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Filters */}
-      <Card style={{ marginBottom: 'var(--space-lg)' }}>
-        <div
+      {/* Tabs */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '0',
+        marginBottom: 'var(--space-lg)',
+        borderBottom: '2px solid var(--border)',
+      }}>
+        <button
+          onClick={() => setActiveTab('payments')}
           style={{
+            padding: 'var(--space) var(--space-lg)',
+            background: activeTab === 'payments' ? 'var(--primary)' : 'transparent',
+            color: activeTab === 'payments' ? 'white' : 'var(--fg)',
+            border: 'none',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+        >
+          💰 Pagos del Día
+        </button>
+        <button
+          onClick={() => setActiveTab('deposits')}
+          style={{
+            padding: 'var(--space) var(--space-lg)',
+            background: activeTab === 'deposits' ? 'var(--primary)' : 'transparent',
+            color: activeTab === 'deposits' ? 'white' : 'var(--fg)',
+            border: 'none',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
+            fontWeight: 600,
             display: 'flex',
-            gap: 'var(--space)',
-            flexWrap: 'wrap',
-            alignItems: 'flex-end',
+            alignItems: 'center',
+            gap: 'var(--space-sm)',
+          }}
+        >
+          🏦 Depósitos Bancarios
+          {pendingCashToDeposit > 0 && (
+            <span style={{
+              background: 'var(--red)',
+              color: 'white',
+              padding: '2px 6px',
+              borderRadius: '10px',
+              fontSize: '0.7rem',
+            }}>
+              {formatCLP(pendingCashToDeposit)} pendiente
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Payments Tab Content */}
+      {activeTab === 'payments' && (
+        <>
+          {/* Filters */}
+          <Card style={{ marginBottom: 'var(--space-lg)' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 'var(--space)',
+                flexWrap: 'wrap',
+                alignItems: 'flex-end',
           }}
         >
           <div>
@@ -329,8 +491,120 @@ export default function CashSheet() {
       <Card>
         <Table columns={columns} data={filteredRows} keyField="id" />
       </Card>
+        </>
+      )}
 
-      {/* Add Modal */}
+      {/* Deposits Tab Content */}
+      {activeTab === 'deposits' && (
+        <>
+          {/* Filter Month */}
+          <Card style={{ marginBottom: 'var(--space-lg)' }}>
+            <div style={{ display: 'flex', gap: 'var(--space)', alignItems: 'flex-end' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: 'var(--space-sm)', fontSize: '0.875rem', color: 'var(--muted)' }}>
+                  Mes
+                </label>
+                <select
+                  value={filterMonth}
+                  onChange={(e) => setFilterMonth(e.target.value)}
+                  style={{ padding: '10px 12px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--fg)' }}
+                >
+                  {monthOptions.map((m) => (
+                    <option key={m} value={m}>
+                      {format(new Date(m + '-01'), 'MMMM yyyy', { locale: es })}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </Card>
+
+          {/* Deposit Stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space)', marginBottom: 'var(--space-lg)' }}>
+            <Card>
+              <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 4 }}>Depositado este Mes</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#10b981' }}>{formatCLP(monthlyDepositTotal)}</div>
+            </Card>
+            <Card>
+              <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 4 }}>Pendiente de Depositar</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: pendingCashToDeposit > 0 ? 'var(--red)' : '#10b981' }}>
+                {formatCLP(pendingCashToDeposit)}
+              </div>
+            </Card>
+            <Card>
+              <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 4 }}>Depósitos Registrados</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>{filteredDeposits.length}</div>
+            </Card>
+          </div>
+
+          {/* Deposits List */}
+          <Card>
+            <h3 style={{ marginBottom: 'var(--space)' }}>Historial de Depósitos</h3>
+            {filteredDeposits.length === 0 ? (
+              <p style={{ color: 'var(--muted)', textAlign: 'center', padding: 'var(--space-lg)' }}>
+                No hay depósitos registrados para este mes
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space)' }}>
+                {filteredDeposits.map((deposit) => (
+                  <div
+                    key={deposit.id}
+                    style={{
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      padding: 'var(--space)',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr auto',
+                      gap: 'var(--space)',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                        {formatCLP(deposit.amount)}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                        Depósito: {formatDate(deposit.date)} | Efectivo del: {formatDate(deposit.cashDate)}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                        🏦 {deposit.bankName} {deposit.accountNumber && `(*${deposit.accountNumber})`}
+                      </div>
+                      {deposit.notes && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 4 }}>
+                          📝 {deposit.notes}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <button
+                        onClick={() => window.open(deposit.voucherPhoto.base64, '_blank')}
+                        style={{
+                          background: 'var(--primary)',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        📄 Ver Voucher
+                      </button>
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>
+                      {format(new Date(deposit.createdAt), 'dd/MM HH:mm')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+
+      {/* Add Payment Modal */}
       <Modal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -482,6 +756,108 @@ export default function CashSheet() {
 
           <Button variant="primary" fullWidth onClick={handleAddRow}>
             Guardar
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Add Deposit Modal */}
+      <Modal
+        open={showDepositModal}
+        onClose={() => setShowDepositModal(false)}
+        title="Registrar Depósito Bancario"
+      >
+        <div>
+          <div style={{ 
+            background: 'rgba(59, 130, 246, 0.1)', 
+            border: '1px solid var(--primary)',
+            borderRadius: '8px',
+            padding: 'var(--space)',
+            marginBottom: 'var(--space-lg)',
+          }}>
+            <p style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>
+              📌 Registra aquí el depósito del efectivo recaudado el día anterior.
+              <br />
+              <strong>Efectivo pendiente de depositar:</strong> {formatCLP(pendingCashToDeposit)}
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space)' }}>
+            <Input
+              label="Fecha de Depósito"
+              type="date"
+              value={depositForm.date}
+              onChange={(e) => setDepositForm({ ...depositForm, date: e.target.value })}
+            />
+            <Input
+              label="Fecha del Efectivo"
+              type="date"
+              value={depositForm.cashDate}
+              onChange={(e) => setDepositForm({ ...depositForm, cashDate: e.target.value })}
+            />
+          </div>
+
+          <Input
+            label="Monto Depositado"
+            type="number"
+            value={depositForm.amount}
+            onChange={(e) => setDepositForm({ ...depositForm, amount: e.target.value })}
+            placeholder="Ej: 150000"
+          />
+
+          <div style={{ marginBottom: 'var(--space)' }}>
+            <label style={{ display: 'block', marginBottom: 'var(--space-sm)', fontSize: '0.875rem', color: 'var(--muted)' }}>
+              Banco
+            </label>
+            <select
+              value={depositForm.bankName}
+              onChange={(e) => setDepositForm({ ...depositForm, bankName: e.target.value })}
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--fg)' }}
+            >
+              <option value="BancoEstado">BancoEstado</option>
+              <option value="Banco de Chile">Banco de Chile</option>
+              <option value="Banco Santander">Banco Santander</option>
+              <option value="BCI">BCI</option>
+              <option value="Scotiabank">Scotiabank</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+
+          <Input
+            label="Últimos 4 dígitos cuenta (opcional)"
+            type="text"
+            value={depositForm.accountNumber}
+            onChange={(e) => setDepositForm({ ...depositForm, accountNumber: e.target.value.slice(0, 4) })}
+            placeholder="1234"
+            maxLength={4}
+          />
+
+          <div style={{ marginBottom: 'var(--space)' }}>
+            <label style={{ display: 'block', marginBottom: 'var(--space-sm)', fontSize: '0.875rem', color: 'var(--muted)' }}>
+              📷 Foto del Voucher/Comprobante *
+            </label>
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleDepositVoucherChange}
+              style={{ width: '100%' }}
+            />
+            {depositVoucher && (
+              <div style={{ marginTop: 'var(--space-sm)' }}>
+                <FilePreview attachment={depositVoucher} />
+              </div>
+            )}
+          </div>
+
+          <Input
+            label="Notas (opcional)"
+            type="text"
+            value={depositForm.notes}
+            onChange={(e) => setDepositForm({ ...depositForm, notes: e.target.value })}
+            placeholder="Observaciones..."
+          />
+
+          <Button variant="primary" fullWidth onClick={handleAddDeposit}>
+            Registrar Depósito
           </Button>
         </div>
       </Modal>

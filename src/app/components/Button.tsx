@@ -1,7 +1,7 @@
 // Button component
 import type { ButtonHTMLAttributes } from 'react'
 
-type ButtonVariant = 'default' | 'primary' | 'danger'
+type ButtonVariant = 'default' | 'primary' | 'danger' | 'secondary'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
@@ -12,6 +12,10 @@ const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
   default: {
     borderColor: 'var(--border)',
     background: 'transparent',
+  },
+  secondary: {
+    borderColor: 'var(--border)',
+    background: 'var(--bg)',
   },
   primary: {
     borderColor: 'var(--navy)',

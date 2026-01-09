@@ -107,6 +107,20 @@ export type OnlinePayment = {
   cardLast4?: string          // Ultimos 4 digitos simulados
 }
 
+// Registro de depósito bancario diario
+export type BankDeposit = {
+  id: string
+  date: string                // Fecha del depósito (día que se deposita el efectivo del día anterior)
+  cashDate: string            // Fecha del efectivo depositado (día anterior)
+  amount: number              // Monto depositado
+  bankName: string            // Nombre del banco
+  accountNumber?: string      // Número de cuenta (últimos 4 dígitos)
+  voucherPhoto: Attachment    // Foto del boucher/comprobante
+  notes?: string
+  createdAt: string
+  createdBy: string           // Usuario que registró
+}
+
 export type GymDB = {
   meta: { version: 1; createdAt: string; updatedAt: string }
   auth: { session: AuthSession }
@@ -115,6 +129,7 @@ export type GymDB = {
   attendance: AttendanceEvent[]
   cashSheet: CashRow[]
   onlinePayments: OnlinePayment[]
+  bankDeposits: BankDeposit[]
 }
 
 // Constantes
