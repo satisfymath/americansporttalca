@@ -1,11 +1,12 @@
 // QRBlock component - displays dynamic QR code for gym entrance
-// QR changes every hour and only works during operating hours
+// QR changes every 2 MINUTES and only works during operating hours
 import { useState, useEffect } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { 
   getCurrentQRToken, 
   isWithinOperatingHours, 
-  getTimeUntilQRChange 
+  getTimeUntilQRChange,
+  QR_INTERVAL_MINUTES
 } from '../utils/qr'
 import Card from './Card'
 
@@ -17,20 +18,22 @@ type QRBlockProps = {
 export default function QRBlock({ size = 200, showDebugInfo = false }: QRBlockProps) {
   const [currentToken, setCurrentToken] = useState(getCurrentQRToken())
   const [operatingStatus, setOperatingStatus] = useState(isWithinOperatingHours())
-  const [timeUntilChange, setTimeUntilChange] = useState(getTimeUntilQRChange())
-  const [currentTime, setCurrentTime] = useState(new Date())
+  const [countdown, setCountdown] = useState(getTimeUntilQRChange())
   
-  // Actualizar cada minuto
+  // Actualizar cada segundo para countdown preciso
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentToken(getCurrentQRToken())
+      const newToken = getCurrentQRToken()
+      // Solo actualizar si el token cambio
+      if (newToken !== currentToken) {
+        setCurrentToken(newToken)
+      }
       setOperatingStatus(isWithinOperatingHours())
-      setTimeUntilChange(getTimeUntilQRChange())
-      setCurrentTime(new Date())
-    }, 30000) // cada 30 segundos
+      setCountdown(getTimeUntilQRChange())
+    }, 1000) // cada segundo para countdown preciso
     
     return () => clearInterval(interval)
-  }, [])
+  }, [currentToken])
   
   // Mostrar mensaje si estamos fuera del horario
   if (!operatingStatus.isOpen) {
@@ -113,11 +116,17 @@ export default function QRBlock({ size = 200, showDebugInfo = false }: QRBlockPr
           textAlign: 'center',
         }}
       >
-        <p style={{ marginBottom: 'var(--space-xs)' }}>
-          🕐 Valido hasta las {currentTime.getHours() + 1}:00
+        <p style={{ 
+          marginBottom: 'var(--space-xs)',
+          fontSize: '1.25rem',
+          fontWeight: 700,
+          fontFamily: 'var(--font-mono)',
+          color: countdown.minutes === 0 && countdown.seconds <= 30 ? 'var(--red)' : 'var(--text)'
+        }}>
+          ⏱️ {countdown.text}
         </p>
         <p style={{ fontSize: '0.75rem' }}>
-          Cambia en {timeUntilChange}
+          Cambia cada {QR_INTERVAL_MINUTES} minutos
         </p>
       </div>
       

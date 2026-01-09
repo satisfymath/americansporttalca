@@ -1,5 +1,5 @@
 // Sistema de QR dinamico con restricciones horarias para American Sport Gym Demo
-// Los tokens cambian cada hora y solo funcionan dentro del horario de operacion
+// Los tokens cambian cada 2 MINUTOS y solo funcionan dentro del horario de operacion
 
 import { nanoid } from 'nanoid'
 import type { AttendanceEvent, GymDB } from '../data/schema'
@@ -8,65 +8,74 @@ import type { AttendanceEvent, GymDB } from '../data/schema'
 export const GYM_OPEN_HOUR = 8.5   // 8:30 AM
 export const GYM_CLOSE_HOUR = 23   // 11:00 PM
 
-// QR tokens hardcodeados por hora (para demo sin generacion dinamica real)
-// En produccion estos serian generados criptograficamente en el backend
-export const HOURLY_QR_TOKENS: Record<number, string> = {
-  8: 'ASG08DEMO26',
-  9: 'ASG09DEMO26',
-  10: 'ASG10DEMO26',
-  11: 'ASG11DEMO26',
-  12: 'ASG12DEMO26',
-  13: 'ASG13DEMO26',
-  14: 'ASG14DEMO26',
-  15: 'ASG15DEMO26',
-  16: 'ASG16DEMO26',
-  17: 'ASG17DEMO26',
-  18: 'ASG18DEMO26',
-  19: 'ASG19DEMO26',
-  20: 'ASG20DEMO26',
-  21: 'ASG21DEMO26',
-  22: 'ASG22DEMO26',
+// Intervalo de cambio del QR en minutos
+export const QR_INTERVAL_MINUTES = 2
+
+/**
+ * Obtiene el slot de tiempo actual (cada 2 minutos = nuevo slot)
+ * Ejemplo: 10:00-10:01 = slot 0, 10:02-10:03 = slot 1, etc.
+ */
+function getCurrentTimeSlot(): { date: string; hour: number; slot: number } {
+  const now = new Date()
+  const date = now.toISOString().split('T')[0] // "2026-01-09"
+  const hour = now.getHours()
+  const minutes = now.getMinutes()
+  const slot = Math.floor(minutes / QR_INTERVAL_MINUTES)
+  
+  return { date, hour, slot }
 }
 
 /**
- * Obtiene el token QR actual basado en la hora
+ * Genera un token QR dinamico basado en fecha, hora y slot de 2 minutos
+ * El token cambia cada 2 minutos automaticamente
+ */
+export function generateQRToken(timeSlot?: { date: string; hour: number; slot: number }): string {
+  const { date, hour, slot } = timeSlot || getCurrentTimeSlot()
+  
+  // Token: combinacion de fecha + hora + slot + secreto
+  const secret = 'ASG_2026'
+  const raw = `${date}-${hour}-${slot}-${secret}`
+  
+  // Crear hash simple pero unico
+  const token = btoa(raw).replace(/[^a-zA-Z0-9]/g, '').slice(0, 10).toUpperCase()
+  
+  return `ASG${token}`
+}
+
+/**
+ * Obtiene el token QR actual
  * Retorna null si estamos fuera del horario de operacion
  */
 export function getCurrentQRToken(): string | null {
-  const hour = new Date().getHours()
-  return HOURLY_QR_TOKENS[hour] || null
+  const opStatus = isWithinOperatingHours()
+  if (!opStatus.isOpen) return null
+  
+  return generateQRToken()
 }
 
 /**
- * Genera un token QR dinamico basado en fecha y hora
- * Usado como alternativa al sistema hardcodeado
- */
-export function generateHourlyQRToken(): string {
-  const now = new Date()
-  const hour = now.getHours()
-  const date = now.toISOString().split('T')[0] // "2026-01-09"
-  
-  // Token simple: combinacion fecha + hora + secreto fijo
-  const secret = 'ASG_DEMO_2026'
-  const token = btoa(`${date}-${hour}-${secret}`).slice(0, 12)
-  
-  return token
-}
-
-/**
- * Valida si un token QR es valido para la hora actual
- * Acepta tanto tokens hardcodeados como generados dinamicamente
+ * Valida si un token QR es valido
+ * Acepta el token actual Y el token del slot anterior (por si escanean justo en el cambio)
  */
 export function validateQRToken(token: string): boolean {
-  // Primero verificar tokens hardcodeados
-  const currentHardcodedToken = getCurrentQRToken()
-  if (currentHardcodedToken && token === currentHardcodedToken) {
-    return true
-  }
+  const currentSlot = getCurrentTimeSlot()
   
-  // Luego verificar token generado dinamicamente
-  const dynamicToken = generateHourlyQRToken()
-  return token === dynamicToken
+  // Token actual
+  const currentToken = generateQRToken(currentSlot)
+  if (token === currentToken) return true
+  
+  // Token del slot anterior (gracia de 2 minutos)
+  const previousSlot = { ...currentSlot }
+  if (previousSlot.slot === 0) {
+    // Si estamos en slot 0, el anterior es el ultimo slot de la hora anterior
+    previousSlot.hour = previousSlot.hour - 1
+    previousSlot.slot = Math.floor(60 / QR_INTERVAL_MINUTES) - 1
+  } else {
+    previousSlot.slot = previousSlot.slot - 1
+  }
+  const previousToken = generateQRToken(previousSlot)
+  
+  return token === previousToken
 }
 
 /**
@@ -179,17 +188,32 @@ export function closeAllOpenSessions(db: GymDB): GymDB {
 }
 
 /**
- * Formatea el tiempo restante hasta el proximo cambio de QR
+ * Formatea el tiempo restante hasta el proximo cambio de QR (cada 2 minutos)
  */
-export function getTimeUntilQRChange(): string {
+export function getTimeUntilQRChange(): { minutes: number; seconds: number; text: string } {
   const now = new Date()
-  const minutesLeft = 60 - now.getMinutes()
+  const currentMinute = now.getMinutes()
+  const currentSecond = now.getSeconds()
   
-  if (minutesLeft <= 1) {
-    return 'menos de 1 minuto'
+  // Calcular segundos hasta el proximo slot de 2 minutos
+  const minuteInSlot = currentMinute % QR_INTERVAL_MINUTES
+  const secondsLeftInCurrentMinute = 60 - currentSecond
+  const fullMinutesLeft = (QR_INTERVAL_MINUTES - 1) - minuteInSlot
+  
+  const totalSecondsLeft = (fullMinutesLeft * 60) + secondsLeftInCurrentMinute
+  const minutes = Math.floor(totalSecondsLeft / 60)
+  const seconds = totalSecondsLeft % 60
+  
+  let text: string
+  if (minutes === 0 && seconds <= 10) {
+    text = `${seconds}s`
+  } else if (minutes === 0) {
+    text = `${seconds} segundos`
+  } else {
+    text = `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
   
-  return `${minutesLeft} minutos`
+  return { minutes, seconds, text }
 }
 
 /**
