@@ -184,30 +184,15 @@ button {
     display: none !important;
   }
   
-  .rail-right {
-    opacity: 0.12 !important;
-  }
-  
-  .cinta-vertical {
-    width: 36px !important;
-  }
-  
-  .main-content {
-    padding-left: calc(36px + var(--space-sm)) !important;
+  .rail-right,
+  .rail-left {
+    opacity: 0.15 !important;
   }
 }
 
 @media (max-width: 480px) {
-  .cinta-vertical {
-    width: 28px !important;
-  }
-  
-  .main-content {
-    padding-left: calc(28px + var(--space-sm)) !important;
-    padding-right: var(--space-sm) !important;
-  }
-  
-  .rail-right {
+  .rail-right,
+  .rail-left {
     display: none !important;
   }
 }

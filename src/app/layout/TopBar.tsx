@@ -36,7 +36,8 @@ export default function TopBar() {
           justifyContent: 'space-between',
           gap: 'var(--space)',
           padding: '0 var(--space)',
-          paddingLeft: 'calc(clamp(48px, 5vw, 72px) + var(--space))',
+          paddingLeft: 'calc(var(--rail-width) + var(--space))',
+          paddingRight: 'calc(var(--rail-width) + var(--space))',
         }}
       >
         {/* Logo */}
@@ -75,7 +76,7 @@ export default function TopBar() {
 
           {!authenticated && <NavLink to="/login">Entrar</NavLink>}
 
-          {user && <NavLink to="/me">Mi Cuenta</NavLink>}
+          {user && <NavLink to="/me">Cuenta</NavLink>}
 
           {admin && (
             <>

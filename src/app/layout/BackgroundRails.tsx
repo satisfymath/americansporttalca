@@ -81,42 +81,44 @@ export default function BackgroundRails() {
         />
       </div>
 
-      {/* Banda vertical izquierda - usando imagen */}
+      {/* Left rail - Hombre with red overlay */}
       <div
-        className="cinta-vertical"
+        className="rail-left"
         style={{
           position: 'absolute',
           left: 0,
-          top: 0,
-          height: '100%',
-          width: 'clamp(48px, 5vw, 72px)',
+          bottom: 0,
+          width: 'var(--rail-width)',
+          height: '90%',
           display: 'flex',
-          justifyContent: 'center',
+          alignItems: 'flex-end',
+          justifyContent: 'flex-start',
         }}
       >
         <img
-          src="./brand/banda.png"
+          src="./brand/hombre.png"
           alt=""
+          loading="lazy"
           style={{
             height: '100%',
             width: 'auto',
-            objectFit: 'cover',
-            objectPosition: 'top center',
+            objectFit: 'contain',
+            objectPosition: 'bottom left',
+            opacity: 0.85,
+            filter: 'saturate(0.9)',
+            mixBlendMode: 'luminosity',
           }}
           onError={(e) => {
-            // Fallback to CSS gradient if image fails
             e.currentTarget.style.display = 'none'
-            const parent = e.currentTarget.parentElement
-            if (parent) {
-              parent.style.background = `linear-gradient(180deg, 
-                var(--navy-950) 0%, 
-                var(--red-600) 20%, 
-                var(--white) 40%, 
-                var(--red-600) 60%, 
-                var(--navy-950) 80%,
-                var(--navy-950) 100%
-              )`
-            }
+          }}
+        />
+        {/* Red/Magenta overlay */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(90deg, rgba(190, 24, 93, 0.3) 0%, transparent 70%)',
+            mixBlendMode: 'multiply',
           }}
         />
       </div>

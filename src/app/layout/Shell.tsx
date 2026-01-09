@@ -28,7 +28,8 @@ export default function Shell({ children }: ShellProps) {
           flexDirection: 'column',
           alignItems: 'center',
           padding: 'var(--space-lg) var(--space)',
-          paddingLeft: 'calc(clamp(48px, 5vw, 72px) + var(--space))',
+          paddingLeft: 'calc(var(--rail-width) + var(--space-lg))',
+          paddingRight: 'calc(var(--rail-width) + var(--space-lg))',
         }}
       >
         <div
@@ -48,7 +49,8 @@ export default function Shell({ children }: ShellProps) {
           zIndex: 'var(--z-content)',
           borderTop: '1px solid var(--border)',
           padding: 'var(--space)',
-          paddingLeft: 'calc(clamp(48px, 5vw, 72px) + var(--space))',
+          paddingLeft: 'calc(var(--rail-width) + var(--space))',
+          paddingRight: 'calc(var(--rail-width) + var(--space))',
           textAlign: 'center',
           fontSize: 'var(--text-xs)',
           color: 'var(--muted)',
