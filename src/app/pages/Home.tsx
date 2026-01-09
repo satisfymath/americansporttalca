@@ -61,7 +61,7 @@ export default function Home() {
             <p style={{ marginBottom: 'var(--space-sm)' }}>
               <strong>Demo - Credenciales:</strong>
             </p>
-            <p>Usuario: demo / semo</p>
+            <p>Usuario: demo / demo</p>
             <p>Admin: admin / admin</p>
           </div>
         </Card>
