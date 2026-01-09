@@ -12,7 +12,7 @@ import FilePreview from '../components/FilePreview'
 import { loadDb, updateDb } from '../state/storage'
 import { formatCLP } from '../utils/money'
 import { formatDate } from '../utils/dates'
-import type { CashRow, Attachment } from '../data/schema'
+import type { CashRow, Attachment, PlanType, PaymentOperationType } from '../data/schema'
 
 export default function CashSheet() {
   const [db, setDb] = useState(loadDb)
@@ -26,6 +26,8 @@ export default function CashSheet() {
     efectivo: '',
     tarjeta: '',
     date: format(new Date(), 'yyyy-MM-dd'),
+    planType: 'full' as PlanType,
+    operationType: 'renovacion' as PaymentOperationType,
   })
   const [attachment, setAttachment] = useState<Attachment | null>(null)
 
@@ -101,6 +103,8 @@ export default function CashSheet() {
       tarjeta,
       total: efectivo + tarjeta,
       attachment: attachment || undefined,
+      planType: form.planType,
+      operationType: form.operationType,
     }
 
     const newDb = updateDb((d) => {
@@ -117,6 +121,8 @@ export default function CashSheet() {
       efectivo: '',
       tarjeta: '',
       date: format(new Date(), 'yyyy-MM-dd'),
+      planType: 'full' as PlanType,
+      operationType: 'renovacion' as PaymentOperationType,
     })
     setAttachment(null)
     setShowAddModal(false)
@@ -133,6 +139,34 @@ export default function CashSheet() {
     { key: 'memberNo', header: 'N.Socio' },
     { key: 'receiptNo', header: 'N.Recibo' },
     { key: 'boleta', header: 'Boleta' },
+    {
+      key: 'planType',
+      header: 'Tipo Plan',
+      render: (row: CashRow) => {
+        const labels: Record<string, string> = {
+          estudiante: 'Estudiante',
+          antiguo: 'Antiguo',
+          full: 'Full',
+        }
+        return labels[row.planType] || row.planType
+      },
+    },
+    {
+      key: 'operationType',
+      header: 'Operacion',
+      render: (row: CashRow) => (
+        <span style={{
+          padding: '2px 6px',
+          borderRadius: '4px',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          background: row.operationType === 'inicio' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+          color: row.operationType === 'inicio' ? '#10b981' : '#3b82f6',
+        }}>
+          {row.operationType === 'inicio' ? 'INICIO' : 'RENOV'}
+        </span>
+      ),
+    },
     {
       key: 'efectivo',
       header: 'Efectivo',
@@ -354,6 +388,63 @@ export default function CashSheet() {
             value={form.boleta}
             onChange={(e) => setForm({ ...form, boleta: e.target.value })}
           />
+
+          {/* Tipo de Plan */}
+          <div style={{ marginBottom: 'var(--space)' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: 'var(--space-sm)',
+                fontSize: '0.875rem',
+                color: 'var(--muted)',
+              }}
+            >
+              Tipo de Plan
+            </label>
+            <select
+              value={form.planType}
+              onChange={(e) => setForm({ ...form, planType: e.target.value as PlanType })}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg)',
+                color: 'var(--fg)',
+              }}
+            >
+              <option value="full">Normal Full</option>
+              <option value="estudiante">Estudiante</option>
+              <option value="antiguo">Cliente Antiguo</option>
+            </select>
+          </div>
+
+          {/* Tipo de Operacion */}
+          <div style={{ marginBottom: 'var(--space)' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: 'var(--space-sm)',
+                fontSize: '0.875rem',
+                color: 'var(--muted)',
+              }}
+            >
+              Tipo de Operacion
+            </label>
+            <select
+              value={form.operationType}
+              onChange={(e) => setForm({ ...form, operationType: e.target.value as PaymentOperationType })}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg)',
+                color: 'var(--fg)',
+              }}
+            >
+              <option value="renovacion">Renovacion Mensual</option>
+              <option value="inicio">Inicio (Primera Inscripcion)</option>
+            </select>
+          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space)' }}>
             <Input

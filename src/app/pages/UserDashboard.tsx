@@ -141,9 +141,14 @@ export default function UserDashboard() {
         }}
       >
         <h1>Mi Cuenta</h1>
-        <Link to="/gate">
-          <Button variant="primary">Marcar Asistencia</Button>
-        </Link>
+        <div style={{ display: 'flex', gap: 'var(--space)' }}>
+          <Link to="/pay">
+            <Button>💳 Pagar Online</Button>
+          </Link>
+          <Link to="/gate">
+            <Button variant="primary">Marcar Asistencia</Button>
+          </Link>
+        </div>
       </div>
 
       {/* Member info */}

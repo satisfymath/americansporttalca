@@ -9,6 +9,8 @@ import Gate from './pages/Gate'
 import UserDashboard from './pages/UserDashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import CashSheet from './pages/CashSheet'
+import MemberProfile360 from './pages/MemberProfile360'
+import OnlinePayment from './pages/OnlinePayment'
 import NotFound from './pages/NotFound'
 
 // Guard para rutas de usuario
@@ -63,6 +65,22 @@ export default function AppRouter() {
           <AdminGuard>
             <CashSheet />
           </AdminGuard>
+        }
+      />
+      <Route
+        path="/member/:id"
+        element={
+          <AdminGuard>
+            <MemberProfile360 />
+          </AdminGuard>
+        }
+      />
+      <Route
+        path="/pay"
+        element={
+          <UserGuard>
+            <OnlinePayment />
+          </UserGuard>
         }
       />
       <Route path="*" element={<NotFound />} />

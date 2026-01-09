@@ -1,6 +1,6 @@
-// Gate page - flujo QR para marcar entrada/salida
+// Gate page - flujo QR para marcar entrada/salida con validaciones
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { nanoid } from 'nanoid'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -9,11 +9,20 @@ import Button from '../components/Button'
 import Input from '../components/Input'
 import { login, logout, isAuthenticated, getLoggedMemberId, getSession } from '../state/auth'
 import { loadDb, updateDb } from '../state/storage'
+import { 
+  isWithinOperatingHours, 
+  canMemberCheckIn, 
+  canMemberCheckOut,
+  getSessionInfo 
+} from '../utils/qr'
 import type { AttendanceType, AttendanceEvent } from '../data/schema'
 
-type Step = 'login' | 'confirm' | 'done'
+type Step = 'login' | 'confirm' | 'done' | 'error'
 
 export default function Gate() {
+  const [searchParams] = useSearchParams()
+  const qrToken = searchParams.get('token')
+  
   const [step, setStep] = useState<Step>('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -21,9 +30,20 @@ export default function Gate() {
   const [suggestion, setSuggestion] = useState<AttendanceType>('IN')
   const [selected, setSelected] = useState<AttendanceType>('IN')
   const [registeredEvent, setRegisteredEvent] = useState<AttendanceEvent | null>(null)
+  const [operatingStatus, setOperatingStatus] = useState(isWithinOperatingHours())
 
-  // Check if already logged in
+  // Verificar horario de operacion al cargar
   useEffect(() => {
+    const status = isWithinOperatingHours()
+    setOperatingStatus(status)
+    
+    if (!status.isOpen) {
+      setError(status.message)
+      setStep('error')
+      return
+    }
+    
+    // Check if already logged in
     if (isAuthenticated() && getLoggedMemberId()) {
       determineSuggestion()
       setStep('confirm')
@@ -35,24 +55,27 @@ export default function Gate() {
     if (!memberId) return
 
     const db = loadDb()
-    const memberEvents = db.attendance
-      .filter((e) => e.memberId === memberId)
-      .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+    const sessionInfo = getSessionInfo(memberId, db.attendance)
 
-    const lastEvent = memberEvents[0]
-
-    if (!lastEvent || lastEvent.type === 'OUT') {
-      setSuggestion('IN')
-      setSelected('IN')
-    } else {
+    if (sessionInfo.hasOpenSession) {
       setSuggestion('OUT')
       setSelected('OUT')
+    } else {
+      setSuggestion('IN')
+      setSelected('IN')
     }
   }
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    // Primero verificar horario
+    const status = isWithinOperatingHours()
+    if (!status.isOpen) {
+      setError(status.message)
+      return
+    }
 
     const result = login(username, password)
 
@@ -76,12 +99,31 @@ export default function Gate() {
     const memberId = getLoggedMemberId()
     if (!memberId) return
 
+    setError('')
+    const db = loadDb()
+
+    // Validaciones segun tipo de operacion
+    if (selected === 'IN') {
+      const checkResult = canMemberCheckIn(memberId, db.attendance, qrToken || undefined)
+      if (!checkResult.allowed) {
+        setError(checkResult.error || 'No se puede registrar entrada')
+        return
+      }
+    } else {
+      const checkResult = canMemberCheckOut(memberId, db.attendance)
+      if (!checkResult.allowed) {
+        setError(checkResult.error || 'No se puede registrar salida')
+        return
+      }
+    }
+
     const event: AttendanceEvent = {
       id: nanoid(),
       memberId,
       type: selected,
       ts: new Date().toISOString(),
       source: 'QR',
+      qrToken: qrToken || undefined,
     }
 
     updateDb((db) => {
@@ -194,6 +236,21 @@ export default function Gate() {
             </Button>
           </div>
 
+          {/* Mensaje de error si hay */}
+          {error && (
+            <div style={{ 
+              marginBottom: 'var(--space)', 
+              padding: 'var(--space-sm)', 
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid var(--red)',
+              borderRadius: '4px',
+              color: 'var(--red)',
+              fontSize: '0.875rem'
+            }}>
+              {error}
+            </div>
+          )}
+
           <Button variant="primary" fullWidth onClick={handleConfirm}>
             Confirmar {selected === 'IN' ? 'Entrada' : 'Salida'}
           </Button>
@@ -262,6 +319,54 @@ export default function Gate() {
             </Button>
             <Link to="/">
               <Button fullWidth>Volver al Inicio</Button>
+            </Link>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  // Step: Error (fuera de horario o QR invalido)
+  if (step === 'error') {
+    return (
+      <div style={{ maxWidth: 500, margin: '0 auto', textAlign: 'center' }}>
+        <img
+          src="./brand/americansporttalca_logo.png"
+          alt="American Sport"
+          style={{ height: 60, marginBottom: 'var(--space-lg)' }}
+        />
+
+        <Card>
+          <div style={{ 
+            fontSize: '3rem', 
+            marginBottom: 'var(--space)' 
+          }}>
+            🚫
+          </div>
+          <h2
+            style={{
+              marginBottom: 'var(--space)',
+              color: 'var(--red)',
+            }}
+          >
+            Acceso No Disponible
+          </h2>
+
+          <p style={{ color: 'var(--muted)', marginBottom: 'var(--space-lg)' }}>
+            {error || operatingStatus.message}
+          </p>
+
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--space-sm)',
+            }}
+          >
+            <Link to="/">
+              <Button variant="primary" fullWidth>
+                Volver al Inicio
+              </Button>
             </Link>
           </div>
         </Card>

@@ -1,0 +1,1144 @@
+================================================================================
+  AMERICAN SPORT TALCA - GUIA DE IMPLEMENTACION DE UPGRADES
+================================================================================
+  Fecha: 9 de Enero 2026
+  Proyecto: americansporttalca
+  Version actual: Demo 0.0.0
+================================================================================
+
+INDICE
+------
+1. RESUMEN EJECUTIVO DE FEATURES
+2. FEATURE 1: VISTA 360 CLIENTE
+3. FEATURE 2: SIMULACION DE PAGO ONLINE
+4. FEATURE 3: PLANILLA DE PAGOS MEJORADA (Tipo Plan + Inicio/Renovacion)
+5. FEATURE 4: QR DINAMICO CON RESTRICCIONES HORARIAS
+6. FEATURE 5: FOTO Y DESCRIPCION DE USUARIOS
+7. SEED DATA EXTENDIDO
+8. TESTS REQUERIDOS
+9. ORDEN DE IMPLEMENTACION PASO A PASO
+
+================================================================================
+1. RESUMEN EJECUTIVO DE FEATURES
+================================================================================
+
+Las 5 features principales a implementar son:
+
+[X] Vista 360 Cliente - Dashboard completo con metricas historicas
+[X] Simulacion Pago Online - Flujo de pago web simulado
+[X] Planilla Mejorada - Agregar tipo de plan y si es inicio/renovacion
+[X] QR Dinamico - Codigos que rotan cada hora, horarios restringidos
+[X] Foto y Descripcion - Ampliar perfil de usuario
+
+================================================================================
+2. FEATURE 1: VISTA 360 CLIENTE
+================================================================================
+
+OBJETIVO:
+Mostrar al administrador (y al usuario en su dashboard) estadisticas
+completas del cliente: meses inscrito, visitas mensuales, visitas totales,
+tendencias, historial de pagos, etc.
+
+ARCHIVOS A MODIFICAR/CREAR:
+-----------------------------
+
+A) src/app/data/schema.ts - Agregar campos al Member:
+
+   // Agregar al tipo Member:
+   export type Member = {
+     id: string
+     memberNo: string
+     name: string
+     status: 'active' | 'paused'
+     plan: {
+       monthlyFee: number
+       dueDay: number
+       type: PlanType           // NUEVO
+     }
+     contact?: {
+       phone?: string
+       email?: string
+     }
+     profile?: {                // NUEVO
+       photo?: string           // base64 o URL
+       rut?: string
+       birthDate?: string       // ISO date
+       emergencyContact?: string
+       notes?: string
+       joinDate: string         // Fecha de inscripcion ISO
+     }
+   }
+
+   // NUEVO tipo de plan
+   export type PlanType = 'estudiante' | 'antiguo' | 'full'
+
+B) src/app/utils/stats.ts - CREAR NUEVO ARCHIVO:
+
+   // Funciones para calcular estadisticas 360
+   
+   import { differenceInMonths, parseISO, format, startOfMonth, endOfMonth } from 'date-fns'
+   import type { Member, Payment, AttendanceEvent } from '../data/schema'
+   
+   export type MemberStats360 = {
+     memberId: string
+     memberName: string
+     memberSince: string              // Fecha de inscripcion
+     monthsAsMemeber: number          // Meses desde inscripcion
+     totalVisits: number              // Visitas totales historicas
+     visitsThisMonth: number          // Visitas del mes actual
+     visitsLastMonth: number          // Visitas mes anterior
+     avgVisitsPerMonth: number        // Promedio visitas/mes
+     visitsTrend: 'up' | 'down' | 'stable'  // Tendencia
+     totalPayments: number            // Total pagos realizados
+     totalAmountPaid: number          // Monto total pagado CLP
+     lastPaymentDate: string | null   // Ultimo pago
+     paymentStatus: 'al_dia' | 'por_vencer' | 'vencido'
+     consecutiveMonthsPaid: number    // Meses consecutivos al dia
+     visitsByMonth: { month: string; count: number }[]  // Ultimos 6 meses
+   }
+   
+   export function calculateMember360(
+     member: Member,
+     payments: Payment[],
+     attendance: AttendanceEvent[]
+   ): MemberStats360 {
+     const now = new Date()
+     const memberPayments = payments.filter(p => p.memberId === member.id)
+     const memberAttendance = attendance.filter(a => 
+       a.memberId === member.id && a.type === 'IN'
+     )
+     
+     const joinDate = member.profile?.joinDate || member.id // fallback
+     const monthsAsMember = differenceInMonths(now, parseISO(joinDate))
+     
+     // Visitas por mes (ultimos 6 meses)
+     const visitsByMonth: { month: string; count: number }[] = []
+     for (let i = 0; i < 6; i++) {
+       const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+       const monthStr = format(monthDate, 'yyyy-MM')
+       const start = startOfMonth(monthDate)
+       const end = endOfMonth(monthDate)
+       
+       const count = memberAttendance.filter(a => {
+         const d = parseISO(a.ts)
+         return d >= start && d <= end
+       }).length
+       
+       visitsByMonth.push({ month: monthStr, count })
+     }
+     
+     const visitsThisMonth = visitsByMonth[0]?.count || 0
+     const visitsLastMonth = visitsByMonth[1]?.count || 0
+     const totalVisits = memberAttendance.length
+     const avgVisitsPerMonth = monthsAsMember > 0 
+       ? Math.round(totalVisits / monthsAsMember) 
+       : totalVisits
+     
+     // Tendencia
+     let visitsTrend: 'up' | 'down' | 'stable' = 'stable'
+     if (visitsThisMonth > visitsLastMonth * 1.2) visitsTrend = 'up'
+     else if (visitsThisMonth < visitsLastMonth * 0.8) visitsTrend = 'down'
+     
+     // Pagos
+     const totalPayments = memberPayments.length
+     const totalAmountPaid = memberPayments.reduce((sum, p) => sum + p.amount, 0)
+     const sortedPayments = [...memberPayments].sort(
+       (a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime()
+     )
+     const lastPaymentDate = sortedPayments[0]?.paidAt || null
+     
+     return {
+       memberId: member.id,
+       memberName: member.name,
+       memberSince: joinDate,
+       monthsAsMember,
+       totalVisits,
+       visitsThisMonth,
+       visitsLastMonth,
+       avgVisitsPerMonth,
+       visitsTrend,
+       totalPayments,
+       totalAmountPaid,
+       lastPaymentDate,
+       paymentStatus: 'al_dia', // calcular real basado en logica existente
+       consecutiveMonthsPaid: totalPayments, // simplificado para demo
+       visitsByMonth,
+     }
+   }
+
+C) src/app/pages/MemberProfile360.tsx - CREAR NUEVA PAGINA:
+
+   Esta pagina mostrara:
+   - Tarjeta con foto del usuario (si tiene) y datos basicos
+   - Grid de StatTile con: Meses inscrito, Visitas totales, Visitas mes, Promedio
+   - Grafico simple (ASCII o barras CSS) de visitas ultimos 6 meses
+   - Historial de pagos completo
+   - Historial de asistencias
+   - Estado de cuenta
+   - Notas del admin
+
+D) src/app/router.tsx - Agregar ruta:
+   
+   <Route path="/member/:id" element={<AdminGuard><MemberProfile360 /></AdminGuard>} />
+
+E) src/app/pages/AdminDashboard.tsx - Agregar link a perfil 360:
+   
+   En la columna de acciones de la tabla de miembros, agregar boton "360"
+   que navegue a /member/{id}
+
+TESTS PARA FEATURE 1:
+---------------------
+Crear: src/test/stats.test.ts
+
+   import { describe, it, expect } from 'vitest'
+   import { calculateMember360 } from '../app/utils/stats'
+   
+   describe('calculateMember360', () => {
+     it('should calculate months as member correctly', () => {
+       // ... test cases
+     })
+     
+     it('should calculate visit trends correctly', () => {
+       // ... test cases
+     })
+   })
+
+================================================================================
+3. FEATURE 2: SIMULACION DE PAGO ONLINE
+================================================================================
+
+OBJETIVO:
+Crear un flujo de pago online simulado donde el usuario pueda:
+1. Ver su saldo pendiente
+2. Seleccionar metodo de pago (Tarjeta simulada, WebPay demo)
+3. Completar formulario de pago
+4. Recibir confirmacion con numero de transaccion
+
+ARCHIVOS A MODIFICAR/CREAR:
+-----------------------------
+
+A) src/app/data/schema.ts - Agregar tipo de transaccion online:
+
+   export type OnlinePayment = {
+     id: string
+     memberId: string
+     amount: number
+     status: 'pending' | 'completed' | 'failed'
+     transactionId: string       // Simulado: "WP-2026010912345"
+     method: 'webpay' | 'card_online' | 'transfer'
+     createdAt: string
+     completedAt?: string
+     period: string              // Mes que cubre
+     cardLast4?: string          // Ultimos 4 digitos simulados
+   }
+   
+   // Agregar al GymDB:
+   export type GymDB = {
+     // ... existente
+     onlinePayments: OnlinePayment[]
+   }
+
+B) src/app/pages/OnlinePayment.tsx - CREAR NUEVA PAGINA:
+
+   // Flujo de 3 pasos:
+   // Step 1: Resumen (monto pendiente, periodo a pagar)
+   // Step 2: Metodo de pago (tarjeta simulada con campos)
+   // Step 3: Confirmacion (transaccion exitosa)
+   
+   import { useState } from 'react'
+   import { nanoid } from 'nanoid'
+   import Card from '../components/Card'
+   import Button from '../components/Button'
+   import Input from '../components/Input'
+   
+   type PaymentStep = 'summary' | 'payment' | 'confirmation'
+   
+   export default function OnlinePayment() {
+     const [step, setStep] = useState<PaymentStep>('summary')
+     const [cardForm, setCardForm] = useState({
+       cardNumber: '',
+       expiry: '',
+       cvv: '',
+       name: '',
+     })
+     const [transactionId, setTransactionId] = useState('')
+     const [processing, setProcessing] = useState(false)
+     
+     // Step 1: Summary
+     // Mostrar: Monto a pagar, periodo, cuota mensual
+     
+     // Step 2: Payment form
+     // Formulario de tarjeta simulado
+     // Al enviar: simular delay de 2s, generar transactionId
+     
+     // Step 3: Confirmation
+     // Mostrar: Numero de transaccion, fecha, monto
+     // Boton para descargar "comprobante" (solo alert en demo)
+     
+     const handleProcessPayment = () => {
+       setProcessing(true)
+       // Simular procesamiento
+       setTimeout(() => {
+         const txId = `WP-${Date.now().toString(36).toUpperCase()}`
+         setTransactionId(txId)
+         // Guardar en DB
+         // ... updateDb logic
+         setProcessing(false)
+         setStep('confirmation')
+       }, 2000)
+     }
+     
+     return (
+       // ... UI segun step
+     )
+   }
+
+C) src/app/router.tsx - Agregar ruta:
+   
+   <Route path="/pay" element={<UserGuard><OnlinePayment /></UserGuard>} />
+
+D) src/app/pages/UserDashboard.tsx - Agregar boton "Pagar Online":
+   
+   Agregar boton junto a "Marcar Asistencia" que lleve a /pay
+
+TESTS PARA FEATURE 2:
+---------------------
+Crear: src/test/payment.test.ts
+
+   describe('online payment flow', () => {
+     it('should generate unique transaction IDs', () => {})
+     it('should update payment status after completion', () => {})
+     it('should add payment to payments array', () => {})
+   })
+
+================================================================================
+4. FEATURE 3: PLANILLA DE PAGOS MEJORADA
+================================================================================
+
+OBJETIVO:
+Agregar a la planilla de caja (CashSheet) y al registro de pagos:
+- Tipo de plan: estudiante / cliente antiguo / normal full
+- Tipo de operacion: inicio (primera inscripcion) o renovacion
+
+ARCHIVOS A MODIFICAR:
+---------------------
+
+A) src/app/data/schema.ts:
+
+   // Agregar tipos
+   export type PlanType = 'estudiante' | 'antiguo' | 'full'
+   export type PaymentOperationType = 'inicio' | 'renovacion'
+   
+   // Modificar CashRow
+   export type CashRow = {
+     id: string
+     date: string
+     memberId: string
+     memberNo: string
+     memberName: string
+     receiptNo: string
+     boleta: string
+     efectivo: number
+     tarjeta: number
+     total: number
+     linkedPaymentId?: string
+     attachment?: Attachment
+     planType: PlanType           // NUEVO
+     operationType: PaymentOperationType  // NUEVO
+   }
+   
+   // Modificar Payment
+   export type Payment = {
+     // ... existente
+     planType?: PlanType          // NUEVO
+     operationType?: PaymentOperationType  // NUEVO
+   }
+
+B) src/app/pages/CashSheet.tsx:
+
+   // Agregar columnas a la tabla:
+   const columns = [
+     // ... existentes ...
+     {
+       key: 'planType',
+       header: 'Tipo Plan',
+       render: (row: CashRow) => {
+         const labels = {
+           estudiante: 'Estudiante',
+           antiguo: 'Antiguo',
+           full: 'Full',
+         }
+         return labels[row.planType] || '-'
+       },
+     },
+     {
+       key: 'operationType',
+       header: 'Operacion',
+       render: (row: CashRow) => row.operationType === 'inicio' ? 'Inicio' : 'Renovacion',
+     },
+     // ...
+   ]
+   
+   // Agregar campos al formulario de agregar registro:
+   // Select para planType y operationType
+
+C) src/app/pages/AdminDashboard.tsx:
+
+   // Agregar selects en el modal de pago:
+   <select value={paymentForm.planType} ...>
+     <option value="full">Normal Full</option>
+     <option value="estudiante">Estudiante</option>
+     <option value="antiguo">Cliente Antiguo</option>
+   </select>
+   
+   <select value={paymentForm.operationType} ...>
+     <option value="renovacion">Renovacion</option>
+     <option value="inicio">Inicio (Primera Inscripcion)</option>
+   </select>
+
+D) src/app/data/seed.ts:
+
+   // Actualizar createSeedCashSheet para incluir nuevos campos:
+   return payments.map((payment) => {
+     const member = members.find((m) => m.id === payment.memberId)
+     return {
+       // ... existente ...
+       planType: member?.plan.type || 'full',
+       operationType: payment.period === periods[2] ? 'inicio' : 'renovacion',
+     }
+   })
+
+TESTS:
+------
+Agregar a src/test/storage.test.ts casos para validar los nuevos campos.
+
+================================================================================
+5. FEATURE 4: QR DINAMICO CON RESTRICCIONES HORARIAS
+================================================================================
+
+OBJETIVO:
+Implementar un sistema de QR que:
+1. Cambia cada hora (hardcodeado para demo)
+2. Solo funciona entre 8:30 AM y 11:00 PM
+3. Al cerrar (11 PM) se invalidan todas las sesiones abiertas
+4. Un cliente solo puede entrar una vez con un QR (no puede enviarlo a otro)
+5. Debe marcar salida antes de poder entrar de nuevo
+
+LOGICA DEL QR DINAMICO (DEMO):
+------------------------------
+Para el demo, usaremos codigos QR basados en la hora actual.
+El QR contendra un token que cambia cada hora.
+
+A) src/app/utils/qr.ts - CREAR NUEVO ARCHIVO:
+
+   // Genera token QR basado en hora actual
+   export function generateHourlyQRToken(): string {
+     const now = new Date()
+     const hour = now.getHours()
+     const date = now.toISOString().split('T')[0] // "2026-01-09"
+     
+     // Token simple: combinacion fecha + hora + secreto fijo
+     const secret = 'ASG_DEMO_2026'
+     const token = btoa(`${date}-${hour}-${secret}`).slice(0, 12)
+     
+     return token
+   }
+   
+   // Valida si un token es valido para la hora actual
+   export function validateQRToken(token: string): boolean {
+     const currentToken = generateHourlyQRToken()
+     return token === currentToken
+   }
+   
+   // Verifica si estamos en horario de operacion
+   export function isWithinOperatingHours(): { 
+     isOpen: boolean
+     message: string 
+   } {
+     const now = new Date()
+     const hour = now.getHours()
+     const minutes = now.getMinutes()
+     const currentTime = hour + (minutes / 60)
+     
+     const OPEN_HOUR = 8.5   // 8:30 AM
+     const CLOSE_HOUR = 23   // 11:00 PM
+     
+     if (currentTime < OPEN_HOUR) {
+       return {
+         isOpen: false,
+         message: `El gimnasio abre a las 8:30 AM. Hora actual: ${hour}:${minutes.toString().padStart(2, '0')}`
+       }
+     }
+     
+     if (currentTime >= CLOSE_HOUR) {
+       return {
+         isOpen: false,
+         message: `El gimnasio esta cerrado. Horario: 8:30 AM - 11:00 PM`
+       }
+     }
+     
+     return { isOpen: true, message: '' }
+   }
+   
+   // Verifica si el miembro tiene sesion abierta (entrada sin salida)
+   export function hasOpenSession(memberId: string, attendance: AttendanceEvent[]): boolean {
+     const memberEvents = attendance
+       .filter(e => e.memberId === memberId)
+       .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+     
+     const lastEvent = memberEvents[0]
+     return lastEvent?.type === 'IN'
+   }
+   
+   // Cierra todas las sesiones abiertas (para ejecutar a las 11 PM)
+   export function closeAllOpenSessions(db: GymDB): GymDB {
+     const now = new Date()
+     const activeMembers = new Set<string>()
+     
+     // Encontrar miembros con sesion abierta
+     db.attendance.forEach(event => {
+       if (event.type === 'IN') {
+         activeMembers.add(event.memberId)
+       } else {
+         activeMembers.delete(event.memberId)
+       }
+     })
+     
+     // Agregar eventos de salida automatica
+     activeMembers.forEach(memberId => {
+       db.attendance.push({
+         id: nanoid(),
+         memberId,
+         type: 'OUT',
+         ts: now.toISOString(),
+         source: 'MANUAL', // o 'SYSTEM'
+       })
+     })
+     
+     return db
+   }
+   
+   // QR tokens hardcodeados por hora (para demo sin generacion dinamica real)
+   export const HOURLY_QR_TOKENS: Record<number, string> = {
+     8: 'ASG08DEMO26',
+     9: 'ASG09DEMO26',
+     10: 'ASG10DEMO26',
+     11: 'ASG11DEMO26',
+     12: 'ASG12DEMO26',
+     13: 'ASG13DEMO26',
+     14: 'ASG14DEMO26',
+     15: 'ASG15DEMO26',
+     16: 'ASG16DEMO26',
+     17: 'ASG17DEMO26',
+     18: 'ASG18DEMO26',
+     19: 'ASG19DEMO26',
+     20: 'ASG20DEMO26',
+     21: 'ASG21DEMO26',
+     22: 'ASG22DEMO26',
+   }
+   
+   export function getCurrentQRToken(): string | null {
+     const hour = new Date().getHours()
+     return HOURLY_QR_TOKENS[hour] || null
+   }
+
+B) src/app/components/QRBlock.tsx - MODIFICAR:
+
+   import { getCurrentQRToken, isWithinOperatingHours } from '../utils/qr'
+   
+   export default function QRBlock({ size = 200 }: QRBlockProps) {
+     const [currentToken, setCurrentToken] = useState(getCurrentQRToken())
+     const [operatingStatus, setOperatingStatus] = useState(isWithinOperatingHours())
+     
+     // Actualizar cada minuto
+     useEffect(() => {
+       const interval = setInterval(() => {
+         setCurrentToken(getCurrentQRToken())
+         setOperatingStatus(isWithinOperatingHours())
+       }, 60000)
+       
+       return () => clearInterval(interval)
+     }, [])
+     
+     if (!operatingStatus.isOpen) {
+       return (
+         <Card>
+           <p style={{ color: 'var(--red)' }}>
+             {operatingStatus.message}
+           </p>
+         </Card>
+       )
+     }
+     
+     if (!currentToken) {
+       return <p>QR no disponible en este horario</p>
+     }
+     
+     // URL con token incluido
+     const gateUrl = `${window.location.origin}${import.meta.env.BASE_URL}#/gate?token=${currentToken}`
+     
+     return (
+       <div>
+         <QRCodeSVG value={gateUrl} size={size} level="M" />
+         <p style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+           Token valido hasta las {new Date().getHours() + 1}:00
+         </p>
+       </div>
+     )
+   }
+
+C) src/app/pages/Gate.tsx - MODIFICAR:
+
+   import { useSearchParams } from 'react-router-dom'
+   import { validateQRToken, isWithinOperatingHours, hasOpenSession } from '../utils/qr'
+   
+   export default function Gate() {
+     const [searchParams] = useSearchParams()
+     const token = searchParams.get('token')
+     
+     // Validaciones al confirmar
+     const handleConfirm = () => {
+       // 1. Validar horario
+       const opStatus = isWithinOperatingHours()
+       if (!opStatus.isOpen) {
+         setError(opStatus.message)
+         return
+       }
+       
+       // 2. Validar token QR (si viene de escaneo)
+       if (token && !validateQRToken(token)) {
+         setError('Codigo QR expirado o invalido. Escanea el QR actual en recepcion.')
+         return
+       }
+       
+       const memberId = getLoggedMemberId()
+       if (!memberId) return
+       
+       const db = loadDb()
+       
+       // 3. Validar sesion abierta
+       const openSession = hasOpenSession(memberId, db.attendance)
+       
+       if (selected === 'IN' && openSession) {
+         setError('Ya tienes una entrada registrada. Debes marcar salida primero.')
+         return
+       }
+       
+       if (selected === 'OUT' && !openSession) {
+         setError('No tienes entrada registrada para marcar salida.')
+         return
+       }
+       
+       // Registrar evento
+       const event: AttendanceEvent = {
+         id: nanoid(),
+         memberId,
+         type: selected,
+         ts: new Date().toISOString(),
+         source: 'QR',
+         qrToken: token || undefined,  // Guardar token usado
+       }
+       
+       updateDb((db) => {
+         db.attendance.push(event)
+         return db
+       })
+       
+       setRegisteredEvent(event)
+       setStep('done')
+     }
+   }
+
+D) src/app/data/schema.ts - Agregar campo qrToken:
+
+   export type AttendanceEvent = {
+     id: string
+     memberId: string
+     type: AttendanceType
+     ts: string
+     source: 'QR' | 'MANUAL'
+     qrToken?: string   // NUEVO: token QR usado para esta entrada
+   }
+
+TESTS PARA FEATURE 4:
+---------------------
+Crear: src/test/qr.test.ts
+
+   import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+   import { 
+     generateHourlyQRToken, 
+     validateQRToken, 
+     isWithinOperatingHours,
+     hasOpenSession 
+   } from '../app/utils/qr'
+   
+   describe('QR system', () => {
+     it('should generate consistent token for same hour', () => {
+       const token1 = generateHourlyQRToken()
+       const token2 = generateHourlyQRToken()
+       expect(token1).toBe(token2)
+     })
+     
+     it('should validate current hour token', () => {
+       const token = generateHourlyQRToken()
+       expect(validateQRToken(token)).toBe(true)
+     })
+     
+     it('should reject invalid token', () => {
+       expect(validateQRToken('INVALID')).toBe(false)
+     })
+   })
+   
+   describe('operating hours', () => {
+     beforeEach(() => {
+       vi.useFakeTimers()
+     })
+     
+     afterEach(() => {
+       vi.useRealTimers()
+     })
+     
+     it('should be closed before 8:30 AM', () => {
+       vi.setSystemTime(new Date('2026-01-09T07:00:00'))
+       const result = isWithinOperatingHours()
+       expect(result.isOpen).toBe(false)
+     })
+     
+     it('should be open at 9:00 AM', () => {
+       vi.setSystemTime(new Date('2026-01-09T09:00:00'))
+       const result = isWithinOperatingHours()
+       expect(result.isOpen).toBe(true)
+     })
+     
+     it('should be closed after 11 PM', () => {
+       vi.setSystemTime(new Date('2026-01-09T23:30:00'))
+       const result = isWithinOperatingHours()
+       expect(result.isOpen).toBe(false)
+     })
+   })
+   
+   describe('session management', () => {
+     it('should detect open session when last event is IN', () => {
+       const events = [
+         { id: '1', memberId: 'test', type: 'IN', ts: '2026-01-09T10:00:00', source: 'QR' }
+       ]
+       expect(hasOpenSession('test', events)).toBe(true)
+     })
+     
+     it('should not detect open session when last event is OUT', () => {
+       const events = [
+         { id: '1', memberId: 'test', type: 'IN', ts: '2026-01-09T10:00:00', source: 'QR' },
+         { id: '2', memberId: 'test', type: 'OUT', ts: '2026-01-09T11:00:00', source: 'QR' }
+       ]
+       expect(hasOpenSession('test', events)).toBe(false)
+     })
+   })
+
+================================================================================
+6. FEATURE 5: FOTO Y DESCRIPCION DE USUARIOS
+================================================================================
+
+OBJETIVO:
+Ampliar el perfil de miembros para incluir:
+- Foto (base64)
+- RUT
+- Fecha de nacimiento
+- Contacto de emergencia
+- Notas adicionales
+- Fecha de inscripcion
+
+ARCHIVOS A MODIFICAR:
+---------------------
+
+A) src/app/data/schema.ts - Ya detallado arriba en Feature 1
+   
+   Agregar el tipo MemberProfile al Member
+
+B) src/app/data/seed.ts - Agregar perfiles a miembros seed:
+
+   function createSeedMembers(): Member[] {
+     const now = new Date()
+     return [
+       {
+         id: DEMO_MEMBER_ID,
+         memberNo: '0001',
+         name: 'Usuario Demo',
+         status: 'active',
+         plan: { monthlyFee: 25000, dueDay: 5, type: 'full' },
+         contact: { phone: '+56912345678', email: 'demo@example.com' },
+         profile: {
+           rut: '12.345.678-9',
+           birthDate: '1995-03-15',
+           emergencyContact: '+56911111111 (Maria)',
+           notes: 'Usuario de demostracion',
+           joinDate: subMonths(now, 8).toISOString(),
+         },
+       },
+       {
+         id: 'member_002',
+         memberNo: '0002',
+         name: 'Carlos Gonzalez',
+         status: 'active',
+         plan: { monthlyFee: 20000, dueDay: 10, type: 'estudiante' },
+         contact: { phone: '+56987654321' },
+         profile: {
+           rut: '18.765.432-1',
+           birthDate: '2002-07-20',
+           notes: 'Estudiante universitario, carnet vigente',
+           joinDate: subMonths(now, 14).toISOString(),
+         },
+       },
+       // ... mas miembros con perfiles variados
+     ]
+   }
+
+C) src/app/pages/AdminDashboard.tsx o nuevo MemberProfile360.tsx:
+
+   // Formulario para editar perfil del miembro
+   // Input para subir foto (como attachment)
+   // Campos para RUT, fecha nacimiento, etc.
+   
+   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+     const file = e.target.files?.[0]
+     if (!file) return
+     
+     const reader = new FileReader()
+     reader.onload = () => {
+       const base64 = reader.result as string
+       // Guardar en member.profile.photo
+     }
+     reader.readAsDataURL(file)
+   }
+
+D) src/app/components/MemberAvatar.tsx - CREAR NUEVO COMPONENTE:
+
+   type MemberAvatarProps = {
+     member: Member
+     size?: number
+   }
+   
+   export default function MemberAvatar({ member, size = 50 }: MemberAvatarProps) {
+     const initials = member.name
+       .split(' ')
+       .map(n => n[0])
+       .join('')
+       .toUpperCase()
+       .slice(0, 2)
+     
+     if (member.profile?.photo) {
+       return (
+         <img
+           src={member.profile.photo}
+           alt={member.name}
+           style={{
+             width: size,
+             height: size,
+             borderRadius: '50%',
+             objectFit: 'cover',
+           }}
+         />
+       )
+     }
+     
+     return (
+       <div
+         style={{
+           width: size,
+           height: size,
+           borderRadius: '50%',
+           background: 'var(--muted)',
+           display: 'flex',
+           alignItems: 'center',
+           justifyContent: 'center',
+           fontWeight: 700,
+           fontSize: size * 0.4,
+         }}
+       >
+         {initials}
+       </div>
+     )
+   }
+
+================================================================================
+7. SEED DATA EXTENDIDO
+================================================================================
+
+Para hacer el dashboard 360 mas completo, agregar mas datos simulados:
+
+A) src/app/data/seed.ts - Ampliar datos:
+
+   // Mas miembros (15-20 total)
+   // Historial de pagos de 6-12 meses
+   // Mas variedad en asistencias
+   // Algunos miembros inactivos
+   // Algunos con deuda
+   
+   function createSeedMembers(): Member[] {
+     const now = new Date()
+     return [
+       // Miembros originales actualizados...
+       
+       // Nuevos miembros
+       {
+         id: 'member_009',
+         memberNo: '0009',
+         name: 'Felipe Rojas',
+         status: 'active',
+         plan: { monthlyFee: 20000, dueDay: 5, type: 'estudiante' },
+         contact: { email: 'felipe@universidad.cl' },
+         profile: {
+           rut: '20.123.456-7',
+           birthDate: '2003-11-10',
+           notes: 'Estudiante Ing. Civil',
+           joinDate: subMonths(now, 3).toISOString(),
+         },
+       },
+       {
+         id: 'member_010',
+         memberNo: '0010',
+         name: 'Carmen Soto',
+         status: 'active',
+         plan: { monthlyFee: 22000, dueDay: 15, type: 'antiguo' },
+         contact: { phone: '+56922222222' },
+         profile: {
+           rut: '10.987.654-3',
+           birthDate: '1978-04-22',
+           notes: 'Cliente desde 2020, plan antiguo',
+           joinDate: subMonths(now, 60).toISOString(), // 5 anos!
+         },
+       },
+       {
+         id: 'member_011',
+         memberNo: '0011',
+         name: 'Diego Fuentes',
+         status: 'paused',
+         plan: { monthlyFee: 25000, dueDay: 20, type: 'full' },
+         profile: {
+           notes: 'Pausado por viaje, retorna en febrero',
+           joinDate: subMonths(now, 10).toISOString(),
+         },
+       },
+       {
+         id: 'member_012',
+         memberNo: '0012',
+         name: 'Isabella Torres',
+         status: 'active',
+         plan: { monthlyFee: 25000, dueDay: 1, type: 'full' },
+         contact: { phone: '+56933333333', email: 'isa@gmail.com' },
+         profile: {
+           rut: '16.543.210-K',
+           birthDate: '1992-08-30',
+           emergencyContact: '+56944444444 (Mama)',
+           joinDate: subMonths(now, 18).toISOString(),
+         },
+       },
+       // ... agregar hasta 20 miembros
+     ]
+   }
+   
+   // Generar pagos de ultimos 6 meses (no solo 3)
+   function createSeedPayments(members: Member[]): Payment[] {
+     const payments: Payment[] = []
+     const now = new Date()
+     
+     // 6 meses de historial
+     const periods = Array.from({ length: 6 }, (_, i) => 
+       format(subMonths(now, i), 'yyyy-MM')
+     )
+     
+     // Patrones de pago variados
+     const paymentPatterns = [
+       { memberId: DEMO_MEMBER_ID, paidPeriods: [0, 1, 2, 3, 4, 5] }, // Siempre al dia
+       { memberId: 'member_002', paidPeriods: [0, 1, 2, 3, 4, 5] },
+       { memberId: 'member_003', paidPeriods: [1, 2, 3, 4, 5] },      // Debe este mes
+       { memberId: 'member_004', paidPeriods: [0, 1, 2, 3, 4, 5] },
+       { memberId: 'member_006', paidPeriods: [3, 4, 5] },            // Debe 3 meses
+       { memberId: 'member_007', paidPeriods: [0, 1, 2, 3, 4, 5] },
+       { memberId: 'member_008', paidPeriods: [1, 2, 3] },            // Irregular
+       { memberId: 'member_009', paidPeriods: [0, 1, 2] },            // Nuevo, 3 meses
+       { memberId: 'member_010', paidPeriods: [0, 1, 2, 3, 4, 5] },   // Antiguo, siempre al dia
+       { memberId: 'member_012', paidPeriods: [0, 1, 2, 3, 4, 5] },
+     ]
+     
+     // ... generar pagos con tipos de plan y operacion
+   }
+   
+   // Asistencias mas variadas
+   function createSeedAttendance(members: Member[]): AttendanceEvent[] {
+     // Patrones:
+     // - Miembros muy activos (20+ visitas/mes)
+     // - Miembros regulares (8-12 visitas/mes)
+     // - Miembros ocasionales (2-4 visitas/mes)
+     // - Miembros que dejaron de venir
+   }
+
+================================================================================
+8. TESTS REQUERIDOS
+================================================================================
+
+ARCHIVOS DE TEST A CREAR/MODIFICAR:
+-----------------------------------
+
+1. src/test/stats.test.ts - Tests para calculo de estadisticas 360
+2. src/test/qr.test.ts - Tests para sistema QR dinamico
+3. src/test/payment.test.ts - Tests para pagos online
+4. src/test/gate.test.ts - MODIFICAR: agregar tests de validaciones
+
+COMANDOS PARA EJECUTAR:
+-----------------------
+npm run test           # Modo watch
+npm run test:run       # Una vez
+npm run typecheck      # Verificar tipos
+
+================================================================================
+9. ORDEN DE IMPLEMENTACION PASO A PASO
+================================================================================
+
+Sigue este orden para implementar las features de manera incremental,
+testeando en cada paso:
+
+PASO 1: Actualizar Schema (Base para todo)
+------------------------------------------
+1.1. Modificar src/app/data/schema.ts
+     - Agregar PlanType, PaymentOperationType
+     - Agregar profile a Member
+     - Agregar campos a CashRow y Payment
+     - Agregar qrToken a AttendanceEvent
+     - Agregar onlinePayments a GymDB
+
+1.2. npm run typecheck
+     - Corregir errores de tipo en otros archivos
+
+PASO 2: Actualizar Seed Data
+----------------------------
+2.1. Modificar src/app/data/seed.ts
+     - Actualizar miembros existentes con nuevos campos
+     - Agregar mas miembros (hasta 15-20)
+     - Extender historial de pagos a 6 meses
+     - Agregar perfiles con joinDate
+
+2.2. npm run test:run
+     - Verificar que tests existentes sigan pasando
+
+PASO 3: Implementar Utilidades QR
+---------------------------------
+3.1. Crear src/app/utils/qr.ts
+     - Funciones de token
+     - Validacion de horarios
+     - Deteccion de sesion abierta
+
+3.2. Crear src/test/qr.test.ts
+3.3. npm run test:run
+
+PASO 4: Implementar Utilidades Stats
+------------------------------------
+4.1. Crear src/app/utils/stats.ts
+4.2. Crear src/test/stats.test.ts
+4.3. npm run test:run
+
+PASO 5: Actualizar QRBlock Component
+------------------------------------
+5.1. Modificar src/app/components/QRBlock.tsx
+     - Token dinamico
+     - Mensaje de horario
+
+5.2. npm run dev
+     - Probar visualmente
+
+PASO 6: Actualizar Gate con Validaciones
+-----------------------------------------
+6.1. Modificar src/app/pages/Gate.tsx
+     - Validar token
+     - Validar horario
+     - Validar sesion abierta
+
+6.2. Actualizar src/test/gate.test.ts
+6.3. npm run test:run
+
+PASO 7: Actualizar Planilla de Caja
+------------------------------------
+7.1. Modificar src/app/pages/CashSheet.tsx
+     - Nuevas columnas
+     - Formulario ampliado
+
+7.2. npm run dev
+     - Probar visualmente
+
+PASO 8: Crear Componente MemberAvatar
+-------------------------------------
+8.1. Crear src/app/components/MemberAvatar.tsx
+8.2. Usarlo en AdminDashboard y UserDashboard
+
+PASO 9: Crear Pagina Vista 360
+-------------------------------
+9.1. Crear src/app/pages/MemberProfile360.tsx
+9.2. Agregar ruta en router.tsx
+9.3. Agregar link en AdminDashboard
+
+PASO 10: Crear Pagina Pago Online
+----------------------------------
+10.1. Crear src/app/pages/OnlinePayment.tsx
+10.2. Agregar ruta en router.tsx
+10.3. Agregar boton en UserDashboard
+10.4. Crear src/test/payment.test.ts
+
+PASO 11: Actualizar AdminDashboard
+-----------------------------------
+11.1. Agregar selects de tipo plan y operacion en modal de pago
+11.2. Agregar boton "360" en tabla de miembros
+
+PASO 12: Testing Final e Integracion
+------------------------------------
+12.1. npm run test:run
+12.2. npm run typecheck
+12.3. npm run lint
+12.4. npm run build
+12.5. npm run preview - Probar build de produccion
+
+================================================================================
+RESUMEN DE ARCHIVOS A CREAR
+================================================================================
+
+NUEVOS ARCHIVOS:
+- src/app/utils/qr.ts
+- src/app/utils/stats.ts
+- src/app/components/MemberAvatar.tsx
+- src/app/pages/MemberProfile360.tsx
+- src/app/pages/OnlinePayment.tsx
+- src/test/qr.test.ts
+- src/test/stats.test.ts
+- src/test/payment.test.ts
+
+ARCHIVOS A MODIFICAR:
+- src/app/data/schema.ts
+- src/app/data/seed.ts
+- src/app/components/QRBlock.tsx
+- src/app/pages/Gate.tsx
+- src/app/pages/CashSheet.tsx
+- src/app/pages/AdminDashboard.tsx
+- src/app/pages/UserDashboard.tsx
+- src/app/router.tsx
+- src/test/gate.test.ts
+
+================================================================================
+NOTAS ADICIONALES PARA EL DEMO
+================================================================================
+
+1. ALMACENAMIENTO: Todo usa LocalStorage. Recordar que los datos se pierden
+   si el usuario limpia el navegador. El boton "Reset Demo" regenera el seed.
+
+2. QR HARDCODEADO: Los tokens QR estan hardcodeados por hora. En produccion
+   real se usaria un sistema con backend y tokens criptograficos.
+
+3. FOTOS: Se almacenan como base64 en LocalStorage. Para muchos usuarios
+   esto puede ser lento. En produccion usar URLs de imagenes en servidor.
+
+4. HORARIOS: La validacion de horario es client-side. Un usuario malicioso
+   podria modificar la hora de su dispositivo. En produccion validar en backend.
+
+5. PAGOS SIMULADOS: No hay integracion real con WebPay u otro procesador.
+   Solo se simula el flujo para demostracion.
+
+================================================================================
+FIN DE LA GUIA
+================================================================================

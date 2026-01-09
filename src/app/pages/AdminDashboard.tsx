@@ -13,7 +13,7 @@ import FilePreview from '../components/FilePreview'
 import { loadDb, updateDb, resetDb } from '../state/storage'
 import { formatCLP } from '../utils/money'
 import { formatDate, getNextDueDate, isOverdue, isDueSoon, isCurrentMonth, getCurrentPeriod } from '../utils/dates'
-import type { Member, Payment, PaymentMethod, Attachment } from '../data/schema'
+import type { Member, Payment, PaymentMethod, Attachment, PlanType, PaymentOperationType } from '../data/schema'
 
 export default function AdminDashboard() {
   const [db, setDb] = useState(loadDb)
@@ -24,6 +24,8 @@ export default function AdminDashboard() {
     method: 'cash' as PaymentMethod,
     receiptNo: '',
     notes: '',
+    planType: 'full' as PlanType,
+    operationType: 'renovacion' as PaymentOperationType,
   })
   const [paymentAttachment, setPaymentAttachment] = useState<Attachment | null>(null)
 
@@ -111,6 +113,8 @@ export default function AdminDashboard() {
       receiptNo: paymentForm.receiptNo || undefined,
       notes: paymentForm.notes || undefined,
       attachment: paymentAttachment || undefined,
+      planType: paymentForm.planType,
+      operationType: paymentForm.operationType,
     }
 
     // Also create cash row
@@ -127,6 +131,8 @@ export default function AdminDashboard() {
       total: parseInt(paymentForm.amount),
       linkedPaymentId: payment.id,
       attachment: paymentAttachment || undefined,
+      planType: paymentForm.planType,
+      operationType: paymentForm.operationType,
     }
 
     const newDb = updateDb((d) => {
@@ -137,7 +143,7 @@ export default function AdminDashboard() {
     setDb(newDb)
 
     // Reset form
-    setPaymentForm({ amount: '', method: 'cash', receiptNo: '', notes: '' })
+    setPaymentForm({ amount: '', method: 'cash', receiptNo: '', notes: '', planType: 'full', operationType: 'renovacion' })
     setPaymentAttachment(null)
     setShowPaymentModal(false)
   }
@@ -184,12 +190,19 @@ export default function AdminDashboard() {
       key: 'actions',
       header: 'Acciones',
       render: (m: Member) => (
-        <Button
-          onClick={() => setSelectedMember(m)}
-          style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-        >
-          Ver
-        </Button>
+        <div style={{ display: 'flex', gap: '4px' }}>
+          <Button
+            onClick={() => setSelectedMember(m)}
+            style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+          >
+            Ver
+          </Button>
+          <Link to={`/member/${m.id}`}>
+            <Button style={{ padding: '4px 8px', fontSize: '0.75rem' }}>
+              360
+            </Button>
+          </Link>
+        </div>
       ),
     },
   ]
@@ -353,6 +366,65 @@ export default function AdminDashboard() {
               <option value="cash">Efectivo</option>
               <option value="card">Tarjeta</option>
               <option value="transfer">Transferencia</option>
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 'var(--space)' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: 'var(--space-sm)',
+                fontSize: '0.875rem',
+                color: 'var(--muted)',
+              }}
+            >
+              Tipo de Plan
+            </label>
+            <select
+              value={paymentForm.planType}
+              onChange={(e) =>
+                setPaymentForm({ ...paymentForm, planType: e.target.value as PlanType })
+              }
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg)',
+                color: 'var(--fg)',
+              }}
+            >
+              <option value="full">Normal Full</option>
+              <option value="estudiante">Estudiante</option>
+              <option value="antiguo">Cliente Antiguo</option>
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 'var(--space)' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: 'var(--space-sm)',
+                fontSize: '0.875rem',
+                color: 'var(--muted)',
+              }}
+            >
+              Tipo de Operacion
+            </label>
+            <select
+              value={paymentForm.operationType}
+              onChange={(e) =>
+                setPaymentForm({ ...paymentForm, operationType: e.target.value as PaymentOperationType })
+              }
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg)',
+                color: 'var(--fg)',
+              }}
+            >
+              <option value="inicio">Inicio de Plan</option>
+              <option value="renovacion">Renovacion</option>
             </select>
           </div>
 
