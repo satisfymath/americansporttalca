@@ -27,10 +27,10 @@ export default function Input({ label, error, style, ...props }: InputProps) {
         style={{
           width: '100%',
           padding: '12px 16px',
-          border: '1px solid',
-          borderColor: error ? 'var(--red-600)' : 'var(--line)',
+          border: '2px solid',
+          borderColor: error ? 'var(--red-600)' : 'rgba(255, 255, 255, 0.2)',
           borderRadius: 'var(--radius-sm)',
-          background: 'rgba(0, 0, 37, 0.6)',
+          background: 'rgba(0, 0, 50, 0.8)',
           color: 'var(--white)',
           fontSize: 'var(--text-base)',
           outline: 'none',
@@ -38,12 +38,12 @@ export default function Input({ label, error, style, ...props }: InputProps) {
           ...style,
         }}
         onFocus={(e) => {
-          e.currentTarget.style.borderColor = 'var(--royal-700)'
-          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26, 40, 133, 0.25)'
+          e.currentTarget.style.borderColor = 'var(--magenta-600)'
+          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(190, 24, 93, 0.25)'
           props.onFocus?.(e)
         }}
         onBlur={(e) => {
-          e.currentTarget.style.borderColor = error ? 'var(--red-600)' : 'var(--line)'
+          e.currentTarget.style.borderColor = error ? 'var(--red-600)' : 'rgba(255, 255, 255, 0.2)'
           e.currentTarget.style.boxShadow = 'none'
           props.onBlur?.(e)
         }}

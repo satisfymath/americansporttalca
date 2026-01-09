@@ -625,13 +625,6 @@ export default function CashSheet() {
             <select
               value={form.memberId}
               onChange={(e) => setForm({ ...form, memberId: e.target.value })}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
             >
               <option value="">Seleccionar...</option>
               {(db.members || []).map((m) => (
@@ -678,13 +671,6 @@ export default function CashSheet() {
             <select
               value={form.planType}
               onChange={(e) => setForm({ ...form, planType: e.target.value as PlanType })}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
             >
               <option value="full">Normal Full</option>
               <option value="estudiante">Estudiante</option>
@@ -707,13 +693,6 @@ export default function CashSheet() {
             <select
               value={form.operationType}
               onChange={(e) => setForm({ ...form, operationType: e.target.value as PaymentOperationType })}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
             >
               <option value="renovacion">Renovacion Mensual</option>
               <option value="inicio">Inicio (Primera Inscripcion)</option>

@@ -815,13 +815,6 @@ export default function AdminDashboard() {
               onChange={(e) =>
                 setPaymentForm({ ...paymentForm, method: e.target.value as PaymentMethod })
               }
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
             >
               <option value="cash">Efectivo</option>
               <option value="card">Tarjeta</option>
@@ -845,13 +838,6 @@ export default function AdminDashboard() {
               onChange={(e) =>
                 setPaymentForm({ ...paymentForm, planType: e.target.value as PlanType })
               }
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
             >
               <option value="full">Normal Full</option>
               <option value="estudiante">Estudiante</option>
@@ -875,13 +861,6 @@ export default function AdminDashboard() {
               onChange={(e) =>
                 setPaymentForm({ ...paymentForm, operationType: e.target.value as PaymentOperationType })
               }
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-              }}
             >
               <option value="inicio">Inicio de Plan</option>
               <option value="renovacion">Renovacion</option>

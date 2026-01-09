@@ -27,12 +27,14 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
     >
       <div
         style={{
-          background: 'var(--bg)',
-          border: '1px solid var(--border)',
+          background: 'linear-gradient(180deg, rgba(0, 0, 50, 0.98) 0%, rgba(0, 0, 37, 0.98) 100%)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          borderRadius: '12px',
           maxWidth: '600px',
           width: '100%',
           maxHeight: '90vh',
           overflow: 'auto',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -40,13 +42,14 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
           <div
             style={{
               padding: 'var(--space)',
-              borderBottom: '1px solid var(--border)',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
+              background: 'rgba(0, 0, 0, 0.2)',
             }}
           >
-            <h3 style={{ margin: 0 }}>{title}</h3>
+            <h3 style={{ margin: 0, color: 'var(--white)' }}>{title}</h3>
             <button
               onClick={onClose}
               style={{

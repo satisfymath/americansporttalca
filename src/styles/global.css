@@ -178,6 +178,60 @@ button {
   border-radius: var(--radius-lg);
 }
 
+/* Global select styling */
+select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 50, 0.8);
+  color: var(--white);
+  font-size: var(--text-base);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='white' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
+}
+
+select:focus {
+  border-color: var(--magenta-600);
+  box-shadow: 0 0 0 3px rgba(190, 24, 93, 0.25);
+}
+
+select option {
+  background: rgb(0, 0, 50);
+  color: var(--white);
+  padding: 8px;
+}
+
+/* Global input improvements */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+input[type="date"],
+textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 50, 0.8);
+  color: var(--white);
+  font-size: var(--text-base);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input:focus,
+textarea:focus {
+  border-color: var(--magenta-600);
+  box-shadow: 0 0 0 3px rgba(190, 24, 93, 0.25);
+}
+
 /* Responsive utilities */
 @media (max-width: 768px) {
   .hide-mobile {
