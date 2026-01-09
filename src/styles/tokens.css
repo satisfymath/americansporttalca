@@ -1,18 +1,101 @@
-/* Design tokens - American Sport Talca */
+/* Design tokens - American Sport Talca - Brutalista Premium */
 :root {
-  --bg: #0b0b0b;
-  --fg: #ffffff;
-  --muted: #bdbdbe;
-  --navy: #000464;
-  --red: #ff0000;
-  --border: rgba(255, 255, 255, 0.14);
-  --border-focus: rgba(255, 255, 255, 0.4);
-  --radius: 0px;
-  --space: 14px;
+  /* === BASE (fondos) === */
+  --navy-950: #000269;
+  --navy-900: #03025B;
+  --ink-950: #000025;
+  --royal-700: #1A2885;
+  --blue-600: #0028FF;
+
+  /* === ACENTOS === */
+  --red-600: #FC020D;
+  --wine-700: #791425;
+  --magenta-700: #571651;
+
+  /* === NEUTRALES UI === */
+  --white: #FFFFFF;
+  --white-90: rgba(255, 255, 255, 0.90);
+  --white-70: rgba(255, 255, 255, 0.70);
+  --white-50: rgba(255, 255, 255, 0.50);
+  --line: rgba(255, 255, 255, 0.10);
+  --glass: rgba(10, 12, 40, 0.35);
+  --glass-hover: rgba(10, 12, 40, 0.55);
+
+  /* === LEGACY ALIASES (compatibilidad) === */
+  --bg: var(--ink-950);
+  --fg: var(--white-90);
+  --muted: var(--white-70);
+  --navy: var(--navy-950);
+  --red: var(--red-600);
+  --border: var(--line);
+  --border-focus: rgba(255, 255, 255, 0.35);
+  --danger: var(--red-600);
+  --success: #22c55e;
+  --warning: #f59e0b;
+
+  /* === ESPACIADO === */
+  --space-xs: 4px;
   --space-sm: 8px;
+  --space: 16px;
   --space-lg: 24px;
   --space-xl: 40px;
-  --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial,
-    sans-serif;
+  --space-2xl: 64px;
+
+  /* === RADIOS === */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* === TIPOGRAFIA === */
+  --font: ui-sans-serif, system-ui, -apple-system, "SF Pro Display", "SF Pro Text",
+    Inter, "Segoe UI", Roboto, Arial, "Helvetica Neue", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* === TAMAÑOS TIPOGRAFICOS === */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 2rem;
+  --text-4xl: 2.5rem;
+  --text-5xl: 3rem;
+
+  /* === HEADER === */
+  --header-height: 72px;
+
+  /* === LAYOUT RAILS === */
+  --rail-width: 24%;
+  --main-width: 52%;
+
+  /* === TRANSICIONES === */
+  --transition-fast: 150ms ease;
+  --transition: 250ms ease;
+  --transition-slow: 400ms ease;
+
+  /* === Z-INDEX === */
+  --z-rails: 0;
+  --z-content: 10;
+  --z-header: 100;
+  --z-modal: 1000;
+  --z-chevrons: 50;
+}
+
+/* Responsive overrides */
+@media (max-width: 1024px) {
+  :root {
+    --rail-width: 18%;
+    --main-width: 64%;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --rail-width: 0%;
+    --main-width: 100%;
+    --header-height: 64px;
+  }
 }

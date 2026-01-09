@@ -1,4 +1,4 @@
-// Login page
+// Login page - Premium glass style
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Card from '../components/Card'
@@ -41,13 +41,40 @@ export default function Login() {
   return (
     <div
       style={{
-        maxWidth: 400,
-        margin: '0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '60vh',
       }}
     >
-      <h1 style={{ marginBottom: 'var(--space-lg)' }}>Iniciar Sesion</h1>
+      <Card
+        variant="glass"
+        style={{
+          width: '100%',
+          maxWidth: '400px',
+          padding: 'var(--space-xl)',
+        }}
+      >
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
+          <h1
+            style={{
+              fontSize: 'var(--text-3xl)',
+              marginBottom: 'var(--space-sm)',
+              background: 'linear-gradient(135deg, var(--white) 0%, var(--white-70) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            Bienvenido
+          </h1>
+          <p style={{ color: 'var(--muted)', fontSize: 'var(--text-sm)' }}>
+            Ingresa a tu cuenta
+          </p>
+        </div>
 
-      <Card>
         <form onSubmit={handleSubmit}>
           <Input
             label="Usuario"
@@ -59,7 +86,7 @@ export default function Login() {
           />
 
           <Input
-            label="Contrasena"
+            label="Contraseña"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -67,21 +94,31 @@ export default function Login() {
             error={error}
           />
 
-          <Button type="submit" variant="primary" fullWidth>
+          <Button
+            type="submit"
+            variant="primary"
+            fullWidth
+            style={{
+              marginTop: 'var(--space)',
+              padding: '14px 20px',
+              fontSize: 'var(--text-base)',
+            }}
+          >
             Entrar
           </Button>
         </form>
 
         <div
           style={{
-            marginTop: 'var(--space-lg)',
+            marginTop: 'var(--space-xl)',
             paddingTop: 'var(--space)',
-            borderTop: '1px solid var(--border)',
-            fontSize: '0.75rem',
-            color: 'var(--muted)',
+            borderTop: '1px solid var(--line)',
+            textAlign: 'center',
           }}
         >
-          <p>Solo cuentas autorizadas. Este es un demo.</p>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--white-50)' }}>
+            Demo: <strong>admin</strong> / admin123 · <strong>demo</strong> / demo123
+          </p>
         </div>
       </Card>
     </div>

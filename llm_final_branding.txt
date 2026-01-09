@@ -1,0 +1,257 @@
+# llm_final_branding.txt
+# Proyecto: American Sport Talca (Vite + React + TypeScript) — Branding/UI Spec para Demo (GitHub Pages)
+
+## 0) Qué estética estás replicando (lectura de la referencia)
+**Mood general:** "Brutalista premium" + "deportivo nocturno" (club/gym) con sensación tecnológica.
+- Fondo oscuro **azul marino profundo** (casi negro) con **degradados** a azules más eléctricos.
+- Laterales con **fotografía recortada** (hombre izquierda, mujer derecha) teñida por luz **rojo-magenta** y **azul**.
+- Elementos de marca "patrióticos/deportivos" (cinta vertical tipo bandera + estrella).
+- UI simple: barra superior limpia + contenido central con bastante aire.
+
+**Distribución actual (la que se ve en la imagen):**
+- Header: logo pequeño en zona superior; navegación alineada a la derecha.
+- Cuerpo: 3 zonas implícitas:
+  - Izquierda: imagen hombre (tinte rojo/magenta).
+  - Centro: contenido principal (título + subtítulo + QR).
+  - Derecha: imagen mujer (tinte azul).
+- Abajo derecha: **flechas/chevrons** como elemento de movimiento/dirección.
+
+## 1) Paleta de colores (tokens recomendados)
+Usa tokens CSS. La referencia está dominada por azules muy oscuros + acentos rojos.
+
+### Base (fondo)
+- Navy-950: `#000269` (azul marino muy profundo)
+- Navy-900: `#03025B`
+- Ink-950:  `#000025` (casi negro azulado)
+- Royal-700: `#1A2885` (azul medio "eléctrico" para overlays)
+- Blue-600: `#0028FF` (para brillos sutiles, NO para texto)
+
+### Acentos
+- Red-600: `#FC020D` (rojo fuerte, usarlo con moderación)
+- Wine-700: `#791425` (rojo oscuro elegante para degradados)
+- Magenta-700: `#571651` (tinte "neón sobrio")
+
+### Neutrales UI
+- White: `#FFFFFF`
+- White-90: `rgba(255,255,255,0.90)`
+- White-70: `rgba(255,255,255,0.70)`
+- Line: `rgba(255,255,255,0.10)` (bordes)
+- Glass: `rgba(10,12,40,0.35)` (cards)
+
+**Regla clave:** el rojo es "sello", no "fondo". El fondo debe seguir siendo navy.
+
+## 2) Tipografía (Apple-like, pero brutalista limpio)
+Objetivo: lectura "premium", sin decoración.
+- Stack recomendado (sin depender de licencia):
+  ```css
+  font-family: ui-sans-serif, system-ui, -apple-system, "SF Pro Display", "SF Pro Text",
+               Inter, Segoe UI, Roboto, Arial, "Helvetica Neue", sans-serif;
+  ```
+- Tamaños (escala simple, consistente):
+  - H1 (hero): 44–56px (según ancho)
+  - H2: 28–32px
+  - Body: 15–16px
+  - Small: 12–13px
+- Tracking:
+  - Títulos: `letter-spacing: -0.02em`
+  - Menú: `letter-spacing: 0.06em` (mayúsculas opcional)
+
+**Sensación Apple:** mucho espacio, tipografía nítida, y micro-interacciones suaves.
+
+## 3) Layout nuevo (sin QR, optimizando espacio)
+### Objetivo
+Mantener la estética de "laterales con atletas", pero que el centro sea un **contenedor de contenido real** (cards, tablas, acciones) con buen uso del espacio.
+
+### Grid recomendado
+Usa un grid "12 columnas" a nivel conceptual, pero implementa como 3 zonas:
+- **Left Visual Rail** (decorativo): 22–26% ancho en desktop
+- **Main Content** (funcional): 48–56% ancho en desktop
+- **Right Visual Rail** (decorativo): 22–26% ancho en desktop
+
+En mobile:
+- Oculta o reduce la presencia de laterales (las fotos pasan a background muy sutil).
+- Main Content a 100% con padding amplio.
+
+### Composición del MAIN (en vez del QR)
+Dentro del área central (Main Content) usar:
+1) **Hero Header** (título + subtítulo + estado rápido)
+2) **Primary Card Area** (contenido por página)
+3) **Secondary Row** (cards pequeñas: "estado pago", "último ingreso", "notificaciones")
+
+Ejemplos por página:
+- Inicio: resumen + CTA grande "Ingresar con QR" (pero como acción UI, no como QR gigante).
+- Ingreso QR: un card con "Escanear / Simular" + historial de accesos.
+- Mi Cuenta: datos + estado de membresía + botón "Actualizar".
+- Admin: tabla pagos + controles.
+
+## 4) Header / Navegación (fluida y simple)
+**Header fijo (sticky) con altura 64–72px:**
+- Izquierda: **Logo grande** + nombre corto (opcional).
+- Derecha: menú simple (Inicio / Ingreso / Mi Cuenta / Admin / Salir).
+- Estado sesión: chip pequeño "demo" o "admin" (no entre corchetes, más premium).
+
+### Logo (más grande y legible)
+Ubicación: **arriba izquierda**, con espacio respirable.
+- Alto visual del logo: 28–34px (desktop), 24–28px (mobile)
+- El logo NUNCA pegado al borde: padding lateral mínimo 24px.
+
+## 5) Ubicación de recursos (hombre.png, mujer.png, cinta_vertical.png, flechas)
+### hombre.png
+- Ubicación: **lado izquierdo**, como "hero background rail".
+- Implementación: `position: absolute; left: 0; bottom: 0; height: 85–95%;`
+- Efecto: overlay con gradiente magenta/rojo:
+  - `linear-gradient(90deg, rgba(252,2,13,0.35) 0%, rgba(0,0,0,0) 55%)`
+- Debe estar detrás del contenido: `z-index: 0; pointer-events: none;`
+
+### mujer.png
+- Ubicación: **lado derecho**, simétrico.
+- Implementación: `position: absolute; right: 0; bottom: 0; height: 85–95%;`
+- Efecto: overlay con gradiente azul:
+  - `linear-gradient(270deg, rgba(0,40,255,0.20) 0%, rgba(0,0,0,0) 55%)`
+
+### cinta_vertical.png
+- Ubicación: **borde izquierdo**, full height, como firma de marca.
+- Implementación:
+  - `position: absolute; left: 0; top: 0; height: 100%; width: clamp(40px, 4vw, 64px);`
+  - Debe quedar por encima del atleta, pero bajo el header (o alineada con él).
+- Ajuste: añade leve sombra o borde derecho para separarla del fondo:
+  - `box-shadow: 1px 0 0 rgba(255,255,255,0.08);`
+
+### flechas_horizontales.png (o svg)
+- Ubicación: **abajo derecha**, como indicador de navegación/transición.
+- Implementación:
+  - `position: absolute; right: clamp(16px, 2vw, 28px); bottom: clamp(14px, 2vw, 28px);`
+  - Opacidad 0.65 (sube al hover).
+- Rol: no debe competir con el contenido; es "motion garnish".
+
+## 6) Animación de flechas durante transiciones (clave para "fluidez")
+### Comportamiento deseado
+Cuando cambias de página (route change):
+- El contenido central hace una transición suave (fade + slide).
+- Las flechas hacen un "micro-shift" horizontal + pulso, sincronizado con la transición.
+
+### Implementación recomendada (Framer Motion)
+- Usa `framer-motion` con `AnimatePresence` para rutas.
+- Flechas como componente fijo que escucha el cambio de ruta.
+
+Pseudo:
+- En cada cambio de `location.pathname`, dispara animación:
+  - translateX: `0 -> +10 -> 0`
+  - opacity: `0.55 -> 0.9 -> 0.65`
+  - blur/glow leve (opcional) con `filter: drop-shadow(...)`.
+
+### Alternativa ultra liviana (solo CSS)
+- Define `@keyframes chevronPulse { ... }`
+- En `useEffect` al cambiar ruta, agrega clase `is-transitioning` por 450ms.
+
+Ejemplo (idea):
+```css
+.chevrons.is-transitioning {
+  animation: chevronPulse 450ms ease-out;
+}
+@keyframes chevronPulse {
+  0%   { transform: translateX(0);   opacity: .65; }
+  50%  { transform: translateX(10px); opacity: .95; }
+  100% { transform: translateX(0);   opacity: .65; }
+}
+```
+
+## 7) "Apple padding" + cards tipo glass (premium sin recargar)
+### Reglas de espaciado (importantísimo)
+- Layout global: `padding-inline: clamp(16px, 3vw, 40px);`
+- Dentro de cards: `padding: 20–24px`
+- Distancias entre secciones: 16–24px
+- Radio: 16–20px (2xl)
+- Bordes: 1px con `rgba(255,255,255,0.10)`
+
+### Cards (estilo)
+- Fondo: `rgba(10,12,40,0.35)` + `backdrop-filter: blur(10px)`
+- Borde: `1px solid rgba(255,255,255,0.10)`
+- Sombra: muy suave, no "material".
+
+## 8) Estructura recomendada del proyecto (Vite + TS)
+### Carpetas
+- `src/assets/brand/`
+  - `logo.svg` (o png)
+  - `cinta_vertical.png`
+  - `flechas_horizontales.png` (idealmente svg)
+- `src/assets/hero/`
+  - `hombre.png`
+  - `mujer.png`
+- `src/components/layout/`
+  - `AppShell.tsx` (estructura global)
+  - `TopNav.tsx`
+  - `BackgroundRails.tsx` (hombre/mujer/cinta)
+  - `Chevrons.tsx` (flechas animadas)
+- `src/pages/`
+  - `Home.tsx`
+  - `Gate.tsx`
+  - `Account.tsx`
+  - `Admin.tsx`
+- `src/styles/`
+  - `tokens.css` (variables)
+  - `app.css` (layout)
+
+### AppShell (idea)
+- Fondo y rails decorativos (assets) en una capa.
+- Header arriba.
+- Main content (Outlet) centrado con max width.
+- Chevrons fixed.
+
+## 9) Reglas de responsividad (para que se vea "pro" en demo)
+- Desktop (>= 1024px):
+  - rails visibles (hombre/mujer), main centrado.
+- Tablet (768–1023px):
+  - rails más tenues (opacity baja), main más ancho.
+- Mobile (< 768px):
+  - ocultar cinta si roba espacio (o reducir a 28–36px).
+  - atletas como background muy suave (opacity 0.12–0.18).
+  - menú como botón + drawer (o menú compacto).
+
+## 10) Accesibilidad y legibilidad
+- Texto principal en `rgba(255,255,255,0.90)` sobre fondo navy.
+- Texto secundario en `rgba(255,255,255,0.70)`.
+- Nunca uses azul eléctrico para texto largo.
+- Botones:
+  - Primario: borde + fondo semi-transparente con hover brillante sutil.
+  - Evita saturación excesiva.
+
+## 11) Fondo (cómo recrear el look)
+Usa 2 capas:
+1) **Gradient base**: de wine/magenta (izq) a navy (centro) a navy más oscuro (der).
+2) **Radial glow**: una luz suave en el centro superior para "premium".
+
+Ejemplo conceptual:
+- `linear-gradient(90deg, #571651 0%, #000269 38%, #000025 100%)`
+- + `radial-gradient(circle at 50% 0%, rgba(0,40,255,0.22), transparent 55%)`
+
+## 12) Qué NO hacer (para que no se vea amateur)
+- No usar sombras fuertes tipo "material".
+- No usar demasiados colores fuera del set.
+- No poner el contenido pegado al borde.
+- No dejar imágenes competir con el texto (siempre con overlay).
+
+## 13) Checklist de implementación (paso a paso)
+1) Crear `tokens.css` con variables de color/spacing/radius.
+2) Crear `AppShell` con:
+   - background gradients
+   - `BackgroundRails` (hombre/mujer/cinta)
+   - `TopNav`
+   - `main` con max-width + padding
+   - `Chevrons` fixed
+3) Reemplazar el QR por:
+   - un `PageCard` central (contenido real)
+   - un layout de cards secundarias debajo
+4) Implementar transiciones de rutas:
+   - Framer Motion (recomendado) o clase CSS temporal
+   - Flechas animadas al cambiar ruta
+5) Optimización:
+   - imágenes en `webp` si puedes
+   - `loading="lazy"` para assets decorativos
+   - `prefers-reduced-motion` para desactivar animaciones si corresponde
+
+## 14) Nota de coherencia con el demo (login hardcodeado)
+Aunque este archivo es "branding", recuerda coherencia visual:
+- La pantalla de login debe ser un card central (glass) con inputs grandes.
+- Nada de formularios largos: 2 campos y listo.
+- Admin/Demo: un chip de estado en el header.
